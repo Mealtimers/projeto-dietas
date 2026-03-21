@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model GrupoAlimentar {
+  id        String         @id @default(cuid())
+  nome      String         @unique
+  descricao String?
+  ordem     Int            @default(0)
+  createdAt DateTime       @default(now())
+  alimentos AlimentoBase[]
+}
+
+model AlimentoBase {
+  id                   String                   @id @default(cuid())
+  nome                 String
+  grupoId              String
+  grupo                GrupoAlimentar           @relation(fields: [grupoId], references: [id])
+  ativo                Boolean                  @default(true)
+  createdAt            DateTime                 @default(now())
+  preparos             PreparoAlimento[]
+  proteinasPedido      PedidoProteina[]
+  itensPermitidos      PedidoItemPermitido[]
+  equivalenciasOrigem  EquivalenciaAlimento[]   @relation("EquivOrigem")
+  equivalenciasDestino EquivalenciaAlimento[]   @relation("EquivDestino")
+}
+
+model PreparoAlimento {
+  id         String       @id @default(cuid())
+  alimentoId String
+  alimento   AlimentoBase @relation(fields: [alimentoId], references: [id], onDelete: Cascade)
+  nome       String
+  descricao  String?
+  gramagem   Float?
+  ativo      Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  itensLote  ItemLote[]
+}
+
+model EquivalenciaAlimento {
+  id                String       @id @default(cuid())
+  alimentoOrigemId  String
+  alimentoDestinoId String
+  fator             Float
+  descricao         String?
+  createdAt         DateTime     @default(now())
+  alimentoOrigem    AlimentoBase @relation("EquivOrigem", fields: [alimentoOrigemId], references: [id])
+  alimentoDestino   AlimentoBase @relation("EquivDestino", fields: [alimentoDestinoId], references: [id])
+
+  @@unique([alimentoOrigemId, alimentoDestinoId])
+}
+
+model Cliente {
+  id          String        @id @default(cuid())
+  nome        String
+  email       String        @unique
+  telefone    String?
+  observacoes String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  pedidos     PedidoDieta[]
+}
+
+enum StatusPedido {
+  PENDENTE
+  GERADO
+  AGUARDANDO_APROVACAO
+  APROVADO
+  REPROVADO
+  EM_PRODUCAO
+  CONCLUIDO
+}
+
+model PedidoDieta {
+  id                String                @id @default(cuid())
+  clienteId         String
+  cliente           Cliente               @relation(fields: [clienteId], references: [id])
+  totalPratos       Int
+  maxRepeticoes     Int
+  minRepeticoesLote Int                   @default(2)
+  observacoes       String?
+  status            StatusPedido          @default(PENDENTE)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  proteinas         PedidoProteina[]
+  itensPermitidos   PedidoItemPermitido[]
+  versoes           CardapioVersao[]
+  aprovacao         AprovacaoCliente?
+  ordemProducao     OrdemProducao?
+}
+
+/// Distribuição de proteína — soma de quantidadePratos = totalPratos
+model PedidoProteina {
+  id               String       @id @default(cuid())
+  pedidoId         String
+  pedido           PedidoDieta  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  alimentoBaseId   String
+  alimentoBase     AlimentoBase @relation(fields: [alimentoBaseId], references: [id])
+  gramagem         Float
+  quantidadePratos Int
+
+  @@unique([pedidoId, alimentoBaseId])
+}
+
+/// Itens permitidos para combinação — Carboidrato | Leguminosa | Legume
+model PedidoItemPermitido {
+  id             String       @id @default(cuid())
+  pedidoId       String
+  pedido         PedidoDieta  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  grupoNome      String       // 'Carboidrato', 'Leguminosa', 'Legume'
+  alimentoBaseId String
+  alimentoBase   AlimentoBase @relation(fields: [alimentoBaseId], references: [id])
+  gramagemBase   Float
+
+  @@unique([pedidoId, alimentoBaseId])
+}
+
+/// Versão/geração de cardápio — histórico preservado; apenas uma ativa por pedido
+model CardapioVersao {
+  id        String         @id @default(cuid())
+  pedidoId  String
+  pedido    PedidoDieta    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  numero    Int
+  ativo     Boolean        @default(true)
+  criadoEm DateTime        @default(now())
+  lotes     LoteCardapio[]
+
+  @@unique([pedidoId, numero])
+}
+
+model LoteCardapio {
+  id         String         @id @default(cuid())
+  versaoId   String
+  versao     CardapioVersao @relation(fields: [versaoId], references: [id], onDelete: Cascade)
+  quantidade Int
+  itens      ItemLote[]
+}
+
+model ItemLote {
+  id        String          @id @default(cuid())
+  loteId    String
+  lote      LoteCardapio    @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  preparoId String
+  preparo   PreparoAlimento @relation(fields: [preparoId], references: [id])
+  gramagem  Float
+  grupoNome String
+}
+
+enum StatusAprovacao {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
+model AprovacaoCliente {
+  id            String          @id @default(cuid())
+  pedidoId      String          @unique
+  status        StatusAprovacao @default(PENDENTE)
+  dataAprovacao DateTime?
+  observacoes   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  pedido        PedidoDieta     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
+
+enum StatusOrdem {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+model OrdemProducao {
+  id                String      @id @default(cuid())
+  pedidoId          String      @unique
+  status            StatusOrdem @default(PENDENTE)
+  dataGeracao       DateTime    @default(now())
+  dataPrevisao      DateTime?
+  observacoes       String?
+  itensConsolidados Json
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  pedido            PedidoDieta @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
