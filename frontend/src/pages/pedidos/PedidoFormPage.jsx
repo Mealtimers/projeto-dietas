@@ -496,33 +496,43 @@ export default function PedidoFormPage() {
           {renderGrupoOpcional({ titulo: 'Leguminosa',  grupoNome: 'Leguminosa',  estado: leguminosa,  setEstado: setLeguminosa })}
           {renderGrupoOpcional({ titulo: 'Legumes', grupoNome: 'Legumes', grupoDbNome: 'Legume', estado: legume, setEstado: setLegume })}
 
-          {/* OBS de Legumes — aparece sempre que o grupo Legumes está ativo */}
-          {legume.ativo && (
-            <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-                <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
-                  OBS — Mix / Legumes proibidos neste pedido
-                </span>
+          {/* OBS de Legumes — aparece apenas quando "Mix variado de vegetais" está selecionado */}
+          {(() => {
+            if (!legume.ativo) return null;
+            const grpLegumes    = grupos.find((g) => g.nome === 'Legume');
+            const legVarAlim    = grpLegumes
+              ? alimentos.find((a) => a.grupoId === grpLegumes.id && a.nome === 'Mix variado de vegetais')
+              : null;
+            const legVarPreparos = legVarAlim?.preparos ?? [];
+            const temLegVariado  = legVarPreparos.some((p) => legume.preparos.has(p.id));
+            if (!temLegVariado) return null;
+            return (
+              <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                  <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
+                    OBS — Mix / Legumes proibidos neste pedido
+                  </span>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: '#92400e' }}>
+                    Informe o mix de legumes e/ou quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
+                  </label>
+                  <textarea
+                    className="form-control"
+                    value={obsLegumes}
+                    onChange={(e) => setObsLegumes(e.target.value)}
+                    placeholder="Ex: Mix de legumes (brócolis, cenoura, vagem). Sem chuchu, sem pimentão..."
+                    rows={3}
+                    style={{ borderColor: '#f59e0b', background: '#fff' }}
+                  />
+                  <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
+                    Esta informação ficará destacada na ordem de produção para orientar a cozinha.
+                  </small>
+                </div>
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ color: '#92400e' }}>
-                  Informe o mix de legumes e/ou quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
-                </label>
-                <textarea
-                  className="form-control"
-                  value={obsLegumes}
-                  onChange={(e) => setObsLegumes(e.target.value)}
-                  placeholder="Ex: Mix de legumes (brócolis, cenoura, vagem). Sem chuchu, sem pimentão..."
-                  rows={3}
-                  style={{ borderColor: '#f59e0b', background: '#fff' }}
-                />
-                <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
-                  Esta informação ficará destacada na ordem de produção para orientar a cozinha.
-                </small>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
