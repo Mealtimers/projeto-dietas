@@ -150,13 +150,15 @@ model LoteCardapio {
 }
 
 model ItemLote {
-  id        String          @id @default(cuid())
-  loteId    String
-  lote      LoteCardapio    @relation(fields: [loteId], references: [id], onDelete: Cascade)
-  preparoId String
-  preparo   PreparoAlimento @relation(fields: [preparoId], references: [id])
-  gramagem  Float
-  grupoNome String
+  id          String          @id @default(cuid())
+  loteId      String
+  lote        LoteCardapio    @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  preparoId   String
+  preparo     PreparoAlimento @relation(fields: [preparoId], references: [id])
+  gramagem    Float
+  grupoNome   String
+  nomeManual  String?
+  obs         String?
 }
 
 enum StatusAprovacao {

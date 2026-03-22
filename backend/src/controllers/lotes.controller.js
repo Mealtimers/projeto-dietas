@@ -18,23 +18,21 @@ const listarMolhos = async (req, res, next) => {
   }
 };
 
-// PUT /api/lotes/:loteId/itens/:itemId - atualiza preparo de um item
+// PUT /api/lotes/:loteId/itens/:itemId - atualiza item (edição manual: nome, gramagem, obs)
 const atualizarItem = async (req, res, next) => {
   try {
     const { loteId, itemId } = req.params;
-    const { preparoId, gramagem } = req.body;
+    const { nomeManual, gramagem, obs } = req.body;
 
     const item = await prisma.itemLote.findFirst({ where: { id: itemId, loteId } });
     if (!item) return res.status(404).json({ error: 'Item não encontrado.' });
 
-    const preparo = await prisma.preparoAlimento.findUnique({ where: { id: preparoId } });
-    if (!preparo) return res.status(404).json({ error: 'Preparo não encontrado.' });
-
     const updated = await prisma.itemLote.update({
       where: { id: itemId },
       data: {
-        preparoId,
-        gramagem: gramagem != null ? parseFloat(gramagem) : item.gramagem,
+        nomeManual: nomeManual !== undefined ? (nomeManual?.trim() || null) : item.nomeManual,
+        gramagem:   gramagem   != null       ? parseFloat(gramagem)         : item.gramagem,
+        obs:        obs        !== undefined ? (obs?.trim() || null)        : item.obs,
       },
       include: { preparo: { include: { alimento: { include: { grupo: true } } } } },
     });

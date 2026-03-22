@@ -102,7 +102,13 @@ export default function PedidoDetalhePage() {
   const startEdit = (lote) => {
     const initial = {};
     lote.itens.forEach((item) => {
-      if (item.grupoNome !== 'Molho') initial[item.id] = item.preparoId;
+      if (item.grupoNome !== 'Molho') {
+        initial[item.id] = {
+          nome:     item.nomeManual ?? item.preparo?.nome ?? '',
+          gramagem: String(item.gramagem ?? ''),
+          obs:      item.obs ?? '',
+        };
+      }
     });
     setEditData(initial);
     setEditandoLoteId(lote.id);
@@ -118,16 +124,18 @@ export default function PedidoDetalhePage() {
     setSavingEdit(true);
     setError(null);
     try {
-      const changed = lote.itens.filter(
-        (item) => item.grupoNome !== 'Molho' && editData[item.id] && editData[item.id] !== item.preparoId
-      );
+      const itensEditaveis = lote.itens.filter((i) => i.grupoNome !== 'Molho' && editData[i.id]);
       await Promise.all(
-        changed.map((item) =>
-          lotesApi.atualizarItem(lote.id, item.id, {
-            preparoId: editData[item.id],
-            gramagem: item.gramagem,
-          })
-        )
+        itensEditaveis.map((item) => {
+          const d = editData[item.id];
+          const nomeOriginal = item.preparo?.nome ?? '';
+          const nomeManual   = d.nome !== nomeOriginal ? d.nome.trim() : null;
+          return lotesApi.atualizarItem(lote.id, item.id, {
+            nomeManual: nomeManual || null,
+            gramagem:   parseFloat(d.gramagem) || item.gramagem,
+            obs:        d.obs.trim() || null,
+          });
+        })
       );
       showSuccess('Refeição atualizada!');
       setEditandoLoteId(null);
@@ -515,73 +523,101 @@ export default function PedidoDetalhePage() {
                               {itensNormais.map((item) => {
                                 const cor = GRUPO_COLOR[item.grupoNome] || {};
 
-                                // Edit mode: show select for this item
+                                // Edit mode: campos livres (nome, gramagem, obs)
                                 if (isEditing) {
-                                  let opcoes = [];
-                                  if (item.grupoNome === 'Proteína') {
-                                    const alimentoId = item.preparo?.alimento?.id;
-                                    opcoes = preparosPorGrupo['Proteína'][alimentoId] || [];
-                                  } else {
-                                    opcoes = preparosPorGrupo[item.grupoNome] || [];
-                                  }
-
+                                  const d = editData[item.id] || { nome: item.preparo?.nome ?? '', gramagem: String(item.gramagem), obs: '' };
+                                  const setField = (field, val) =>
+                                    setEditData((prev) => ({ ...prev, [item.id]: { ...prev[item.id], [field]: val } }));
                                   return (
                                     <div key={item.id} style={{
-                                      display: 'flex', alignItems: 'center', gap: 8,
-                                      paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
+                                      paddingBottom: 8, marginBottom: 8, borderBottom: '1px solid var(--gray-100)',
                                     }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                        <span style={{
+                                          fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                          minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85, flexShrink: 0,
+                                        }}>
+                                          {item.grupoNome}
+                                        </span>
+                                        <input
+                                          type="text"
+                                          value={d.nome}
+                                          onChange={(e) => setField('nome', e.target.value)}
+                                          style={{
+                                            flex: 1, padding: '3px 8px', borderRadius: 6, fontSize: '0.85rem',
+                                            border: `1px solid ${d.nome !== (item.preparo?.nome ?? '') ? 'var(--primary)' : 'var(--gray-300)'}`,
+                                            background: d.nome !== (item.preparo?.nome ?? '') ? 'var(--primary-bg)' : '#fff',
+                                          }}
+                                          placeholder="Nome do preparo"
+                                        />
+                                        <input
+                                          type="number"
+                                          value={d.gramagem}
+                                          onChange={(e) => setField('gramagem', e.target.value)}
+                                          min="0"
+                                          style={{
+                                            width: 64, padding: '3px 6px', borderRadius: 6, fontSize: '0.85rem',
+                                            border: `1px solid ${String(d.gramagem) !== String(item.gramagem) ? 'var(--primary)' : 'var(--gray-300)'}`,
+                                            background: String(d.gramagem) !== String(item.gramagem) ? 'var(--primary-bg)' : '#fff',
+                                            textAlign: 'right',
+                                          }}
+                                        />
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', flexShrink: 0 }}>g</span>
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 92 }}>
+                                        <input
+                                          type="text"
+                                          value={d.obs}
+                                          onChange={(e) => setField('obs', e.target.value)}
+                                          placeholder="OBS (opcional)"
+                                          style={{
+                                            flex: 1, padding: '3px 8px', borderRadius: 6, fontSize: '0.78rem',
+                                            border: `1px solid ${d.obs ? '#f59e0b' : 'var(--gray-200)'}`,
+                                            background: d.obs ? '#fffbeb' : '#fafafa',
+                                            color: d.obs ? '#92400e' : 'var(--gray-500)',
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                }
+
+                                // Normal display
+                                const nomeExibido = item.nomeManual || item.preparo?.nome;
+                                return (
+                                  <div key={item.id} style={{
+                                    paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                                       <span style={{
                                         fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
-                                        minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85,
+                                        minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85, flexShrink: 0,
                                       }}>
                                         {item.grupoNome}
                                       </span>
-                                      {opcoes.length > 1 ? (
-                                        <select
-                                          value={editData[item.id] || item.preparoId}
-                                          onChange={(e) => setEditData((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                                          style={{
-                                            flex: 1, padding: '3px 6px', borderRadius: 6, fontSize: '0.85rem',
-                                            border: `1px solid ${editData[item.id] && editData[item.id] !== item.preparoId ? 'var(--primary)' : 'var(--gray-300)'}`,
-                                            background: editData[item.id] && editData[item.id] !== item.preparoId ? 'var(--primary-bg)' : '#fff',
-                                          }}
-                                        >
-                                          {opcoes.map((o) => (
-                                            <option key={o.id} value={o.id}>{o.nome}</option>
-                                          ))}
-                                        </select>
-                                      ) : (
-                                        <span style={{ fontWeight: 500, flex: 1, fontSize: '0.9rem', color: 'var(--gray-500)' }}>
-                                          {item.preparo?.nome}
-                                          <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>(única opção)</span>
-                                        </span>
-                                      )}
+                                      <span style={{
+                                        fontWeight: 500, flex: 1,
+                                        color: item.nomeManual ? 'var(--primary-dark)' : 'inherit',
+                                      }}>
+                                        {nomeExibido}
+                                        {item.nomeManual && (
+                                          <span style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--primary)', fontStyle: 'italic' }}>editado</span>
+                                        )}
+                                      </span>
                                       {item.gramagem > 0 && (
                                         <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontWeight: 600, flexShrink: 0 }}>
                                           {item.gramagem}g
                                         </span>
                                       )}
                                     </div>
-                                  );
-                                }
-
-                                // Normal display
-                                return (
-                                  <div key={item.id} style={{
-                                    display: 'flex', alignItems: 'baseline', gap: 8,
-                                    paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
-                                  }}>
-                                    <span style={{
-                                      fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
-                                      minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85,
-                                    }}>
-                                      {item.grupoNome}
-                                    </span>
-                                    <span style={{ fontWeight: 500, flex: 1 }}>{item.preparo?.nome}</span>
-                                    {item.gramagem > 0 && (
-                                      <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontWeight: 600 }}>
-                                        {item.gramagem}g
-                                      </span>
+                                    {item.obs && (
+                                      <div style={{
+                                        paddingLeft: 92, fontSize: '0.78rem', color: '#92400e',
+                                        background: '#fffbeb', borderRadius: 4, padding: '2px 8px 2px 92px',
+                                        marginTop: 2, fontStyle: 'italic',
+                                      }}>
+                                        ⚠️ {item.obs}
+                                      </div>
                                     )}
                                   </div>
                                 );
