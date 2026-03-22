@@ -152,6 +152,19 @@ async function main() {
   const maria  = await prisma.cliente.create({ data: { nome: 'Maria Souza',   email: 'maria@email.com',  telefone: '(11) 99999-2222' } });
   const carlos = await prisma.cliente.create({ data: { nome: 'Carlos Lima',   email: 'carlos@email.com', telefone: '(11) 99999-3333' } });
 
+  // ── 4b. Buscar IDs de preparos para usar nos pedidos ──────────────────────
+  const getPreparoId = async (alimentoId, nome) => {
+    const p = await prisma.preparoAlimento.findFirst({ where: { alimentoId, nome } });
+    return p.id;
+  };
+
+  const prepArrozBrancoCozido = await getPreparoId(arrozBranco.id, 'Arroz Branco Cozido');
+  const prepBatataDoCeCozida  = await getPreparoId(batataDoce.id,  'Batata Doce Cozida');
+  const prepBroccolisVapor    = await getPreparoId(brocolis.id,    'Brócolis no Vapor');
+  const prepFeijCarioca       = await getPreparoId(feijCarioca.id, 'Feijão Carioca Temperado');
+  const prepGraoDeBico        = await getPreparoId(graoDeBico.id,  'Grão de Bico Refogado');
+  const prepAbobrinha         = await getPreparoId(abobrinha.id,   'Abobrinha Refogada');
+
   // ── 5. Pedidos ─────────────────────────────────────────────────────────────
 
   // Pedido A — João: 6 frango + 2 salmão, 2 carbs, sem leguminosa, 1 legume
@@ -166,9 +179,9 @@ async function main() {
     { pedidoId: pedidoA.id, alimentoBaseId: salmao.id, gramagem: 140, quantidadePratos: 2 },
   ]});
   await prisma.pedidoItemPermitido.createMany({ data: [
-    { pedidoId: pedidoA.id, grupoNome: 'Carboidrato', alimentoBaseId: arrozBranco.id, gramagemBase: 80  },
-    { pedidoId: pedidoA.id, grupoNome: 'Carboidrato', alimentoBaseId: batataDoce.id,  gramagemBase: 120 },
-    { pedidoId: pedidoA.id, grupoNome: 'Legume',      alimentoBaseId: brocolis.id,    gramagemBase: 80  },
+    { pedidoId: pedidoA.id, grupoNome: 'Carboidrato', preparoId: prepArrozBrancoCozido, gramagemBase: 80  },
+    { pedidoId: pedidoA.id, grupoNome: 'Carboidrato', preparoId: prepBatataDoCeCozida,  gramagemBase: 120 },
+    { pedidoId: pedidoA.id, grupoNome: 'Legume',      preparoId: prepBroccolisVapor,    gramagemBase: 80  },
   ]});
 
   // Pedido B — Maria: 5 carne + 5 frango, 2 carbs, 2 leguminosas, sem legume
@@ -183,10 +196,10 @@ async function main() {
     { pedidoId: pedidoB.id, alimentoBaseId: frango.id,      gramagem: 160, quantidadePratos: 5 },
   ]});
   await prisma.pedidoItemPermitido.createMany({ data: [
-    { pedidoId: pedidoB.id, grupoNome: 'Carboidrato', alimentoBaseId: arrozBranco.id, gramagemBase: 80  },
-    { pedidoId: pedidoB.id, grupoNome: 'Carboidrato', alimentoBaseId: batataDoce.id,  gramagemBase: 120 },
-    { pedidoId: pedidoB.id, grupoNome: 'Leguminosa',  alimentoBaseId: feijCarioca.id, gramagemBase: 150 },
-    { pedidoId: pedidoB.id, grupoNome: 'Leguminosa',  alimentoBaseId: graoDeBico.id,  gramagemBase: 100 },
+    { pedidoId: pedidoB.id, grupoNome: 'Carboidrato', preparoId: prepArrozBrancoCozido, gramagemBase: 80  },
+    { pedidoId: pedidoB.id, grupoNome: 'Carboidrato', preparoId: prepBatataDoCeCozida,  gramagemBase: 120 },
+    { pedidoId: pedidoB.id, grupoNome: 'Leguminosa',  preparoId: prepFeijCarioca,       gramagemBase: 150 },
+    { pedidoId: pedidoB.id, grupoNome: 'Leguminosa',  preparoId: prepGraoDeBico,        gramagemBase: 100 },
   ]});
 
   // Pedido C — Carlos: 12 pratos, 3 proteínas, carbs + leguminosas + legumes
@@ -202,11 +215,11 @@ async function main() {
     { pedidoId: pedidoC.id, alimentoBaseId: salmao.id,      gramagem: 140, quantidadePratos: 3 },
   ]});
   await prisma.pedidoItemPermitido.createMany({ data: [
-    { pedidoId: pedidoC.id, grupoNome: 'Carboidrato', alimentoBaseId: arrozBranco.id, gramagemBase: 80  },
-    { pedidoId: pedidoC.id, grupoNome: 'Carboidrato', alimentoBaseId: batataDoce.id,  gramagemBase: 120 },
-    { pedidoId: pedidoC.id, grupoNome: 'Leguminosa',  alimentoBaseId: feijCarioca.id, gramagemBase: 150 },
-    { pedidoId: pedidoC.id, grupoNome: 'Legume',      alimentoBaseId: brocolis.id,    gramagemBase: 80  },
-    { pedidoId: pedidoC.id, grupoNome: 'Legume',      alimentoBaseId: abobrinha.id,   gramagemBase: 80  },
+    { pedidoId: pedidoC.id, grupoNome: 'Carboidrato', preparoId: prepArrozBrancoCozido, gramagemBase: 80  },
+    { pedidoId: pedidoC.id, grupoNome: 'Carboidrato', preparoId: prepBatataDoCeCozida,  gramagemBase: 120 },
+    { pedidoId: pedidoC.id, grupoNome: 'Leguminosa',  preparoId: prepFeijCarioca,       gramagemBase: 150 },
+    { pedidoId: pedidoC.id, grupoNome: 'Legume',      preparoId: prepBroccolisVapor,    gramagemBase: 80  },
+    { pedidoId: pedidoC.id, grupoNome: 'Legume',      preparoId: prepAbobrinha,         gramagemBase: 80  },
   ]});
 
   console.log('Seed concluído!');
