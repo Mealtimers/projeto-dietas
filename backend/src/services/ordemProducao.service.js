@@ -2,7 +2,7 @@
 
 const prisma = require('../lib/prisma');
 
-const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes'];
+const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes', 'Molho'];
 
 async function gerarOrdem(pedidoId) {
   const versaoAtiva = await prisma.cardapioVersao.findFirst({
@@ -64,10 +64,12 @@ async function gerarOrdem(pedidoId) {
     return {
       quantidade: lote.quantidade,
       itens: itensOrdenados.map((item) => ({
-        grupoNome: item.grupoNome,
-        preparo:   item.preparo.nome,
-        alimento:  item.preparo.alimento.nome,
-        gramagem:  item.gramagem,
+        grupoNome:  item.grupoNome,
+        preparo:    item.preparo.nome,
+        alimento:   item.preparo.alimento.nome,
+        gramagem:   item.gramagem,
+        nomeManual: item.nomeManual || null,
+        obs:        item.obs        || null,
       })),
     };
   });

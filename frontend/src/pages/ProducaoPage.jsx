@@ -5,11 +5,15 @@ import StatusBadge from '../components/StatusBadge';
 
 const STATUS_OPTIONS   = ['PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA'];
 const STATUS_LABELS    = { PENDENTE: 'Pendente', EM_ANDAMENTO: 'Em Andamento', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
-const GRUPO_ORDER      = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes'];
-const GRUPO_ICONS      = { 'Proteína': '🥩', 'Carboidrato': '🍚', 'Leguminosa': '🫘', 'Legumes': '🥦' };
-const GRUPO_COLORS     = { 'Proteína': '#f97316', 'Carboidrato': '#eab308', 'Leguminosa': '#a855f7', 'Legumes': '#16a34a' };
+const GRUPO_ORDER      = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes', 'Molho'];
+const GRUPO_ICONS      = { 'Proteína': '🥩', 'Carboidrato': '🍚', 'Leguminosa': '🫘', 'Legumes': '🥦', 'Molho': '🫙' };
+const GRUPO_COLORS     = { 'Proteína': '#f97316', 'Carboidrato': '#eab308', 'Leguminosa': '#a855f7', 'Legumes': '#16a34a', 'Molho': '#7c3aed' };
 
 function fmt(g) { return g >= 1000 ? `${(g / 1000).toFixed(2)} kg` : `${g.toFixed(0)} g`; }
+
+function fmtDataHora() {
+  return new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
 
 export default function ProducaoPage() {
   const [ordens, setOrdens]                   = useState([]);
@@ -202,7 +206,7 @@ export default function ProducaoPage() {
                   {geradoEm && ` · gerado em ${formatDate(geradoEm)}`}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   className={`btn btn-sm ${abaDetalhe === 'consolidado' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setAbaDetalhe('consolidado')}
@@ -211,6 +215,11 @@ export default function ProducaoPage() {
                   className={`btn btn-sm ${abaDetalhe === 'montagem' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setAbaDetalhe('montagem')}
                 >🍽️ Montagem</button>
+                <button
+                  className={`btn btn-sm ${abaDetalhe === 'impressao' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setAbaDetalhe('impressao')}
+                  style={{ borderColor: '#7B1A1A' }}
+                >🖨️ Imprimir</button>
               </div>
             </div>
 
@@ -327,6 +336,273 @@ export default function ProducaoPage() {
                 </div>
               </div>
             )}
+
+            {/* ── ABA: Impressão ── */}
+            {abaDetalhe === 'impressao' && (() => {
+              const pedido   = ordemSelecionada.pedido || {};
+              const cliente  = pedido.cliente?.nome    || '—';
+              const nutri    = pedido.nutricionista     || null;
+              const obsLeg   = pedido.obsLegumes        || null;
+              const dataImp  = fmtDataHora();
+
+              return (
+                <div>
+                  {/* Botões de ação (ocultos na impressão) */}
+                  <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => window.print()}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      🖨️ Imprimir
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => window.print()}
+                      title="No diálogo de impressão, selecione 'Salvar como PDF'"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      📄 Salvar PDF
+                      <span style={{ fontSize: '0.72rem', color: 'var(--gray-400)', marginLeft: 2 }}>(selecione PDF no diálogo)</span>
+                    </button>
+                  </div>
+
+                  {/* ═══════════════════════════════════════════════════════
+                      DOCUMENTO IMPRIMÍVEL — ambas as seções numa única view
+                  ═══════════════════════════════════════════════════════ */}
+                  <div className="print-area">
+
+                    {/* ── SEÇÃO 1: Plano de Produção (Insumos Consolidados) ── */}
+                    <div className="print-section" style={{
+                      background: '#fff', padding: '0 0 32px',
+                      borderBottom: '2px dashed #ccc', marginBottom: 32,
+                    }}>
+                      {/* Cabeçalho do documento */}
+                      <div className="print-header" style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                        borderBottom: '3px solid #7B1A1A', paddingBottom: 12, marginBottom: 20,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#7B1A1A' }}>
+                            📋 Plano de Produção — Insumos
+                          </div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginTop: 2 }}>
+                            Cliente: {cliente}
+                          </div>
+                          {nutri && (
+                            <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: 2 }}>
+                              👨‍⚕️ Nutricionista: {nutri}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#64748b' }}>
+                          <div>🍱 {totalPratos} pratos no total</div>
+                          <div style={{ marginTop: 4 }}>Gerado em {dataImp}</div>
+                        </div>
+                      </div>
+
+                      {/* OBS Legumes */}
+                      {obsLeg && (
+                        <div style={{
+                          background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 8,
+                          padding: '10px 14px', marginBottom: 16,
+                          display: 'flex', gap: 10, alignItems: 'flex-start',
+                        }}>
+                          <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.75rem', color: '#92400e', textTransform: 'uppercase', marginBottom: 2 }}>
+                              Legumes — Restrições do cliente
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: '#78350f' }}>{obsLeg}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tabelas por grupo */}
+                      {Object.entries(porGrupo).map(([grupo, lista]) => {
+                        const subtotal = lista.reduce((s, i) => s + i.totalGramas, 0);
+                        const cor      = GRUPO_COLORS[grupo] || '#7B1A1A';
+                        const icon     = GRUPO_ICONS[grupo]  || '🥘';
+                        return (
+                          <div key={grupo} style={{ marginBottom: 20 }}>
+                            <div style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              padding: '7px 12px', borderRadius: 6,
+                              background: cor + '18', borderLeft: `4px solid ${cor}`,
+                              marginBottom: 6,
+                            }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cor }}>
+                                {icon} {grupo}
+                              </span>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: cor }}>
+                                Subtotal: {fmt(subtotal)}
+                              </span>
+                            </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ background: '#f8fafc' }}>
+                                  <th style={{ textAlign: 'left', padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 700 }}>Alimento</th>
+                                  <th style={{ textAlign: 'left', padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 700 }}>Modo de Preparo</th>
+                                  <th style={{ textAlign: 'right', padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 700 }}>g / prato</th>
+                                  <th style={{ textAlign: 'right', padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 700 }}>Pratos</th>
+                                  <th style={{ textAlign: 'right', padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 700, color: cor }}>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lista.map((item, idx) => (
+                                  <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                    <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', fontWeight: 600 }}>{item.alimento}</td>
+                                    <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', color: '#475569' }}>{item.preparo}</td>
+                                    <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'right', color: '#475569' }}>{item.gramagem} g</td>
+                                    <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'right', color: '#475569' }}>{item.totalPratos}×</td>
+                                    <td style={{ padding: '6px 10px', border: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 700, color: cor }}>{fmt(item.totalGramas)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })}
+
+                      {/* Total geral */}
+                      <div style={{
+                        display: 'flex', justifyContent: 'flex-end',
+                        padding: '10px 14px', background: '#f1f5f9', borderRadius: 6, border: '1px solid #e2e8f0',
+                      }}>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: '#1e293b' }}>
+                          ⚖️ Total Geral:&nbsp;
+                          <span style={{ color: '#7B1A1A', fontSize: '1.1rem' }}>{fmt(totalGeralGramas)}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ── SEÇÃO 2: Descritivo Individual por Lote ── */}
+                    <div className="print-section">
+                      {/* Cabeçalho */}
+                      <div className="print-header" style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                        borderBottom: '3px solid #7B1A1A', paddingBottom: 12, marginBottom: 20,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#7B1A1A' }}>
+                            🍽️ Descritivo Individual — Cardápio por Lote
+                          </div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginTop: 2 }}>
+                            Cliente: {cliente}
+                          </div>
+                          {nutri && (
+                            <div style={{ fontSize: '0.85rem', color: '#475569', marginTop: 2 }}>
+                              👨‍⚕️ Nutricionista: {nutri}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#64748b' }}>
+                          <div>🍱 {totalPratos} pratos no total</div>
+                          <div style={{ marginTop: 4 }}>Gerado em {dataImp}</div>
+                        </div>
+                      </div>
+
+                      {/* OBS Legumes */}
+                      {obsLeg && (
+                        <div style={{
+                          background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: 8,
+                          padding: '10px 14px', marginBottom: 16,
+                          display: 'flex', gap: 10, alignItems: 'flex-start',
+                        }}>
+                          <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.75rem', color: '#92400e', textTransform: 'uppercase', marginBottom: 2 }}>
+                              Legumes — Restrições do cliente
+                            </div>
+                            <div style={{ fontSize: '0.9rem', color: '#78350f' }}>{obsLeg}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Lotes */}
+                      {mapaMontagem.length === 0 ? (
+                        <p style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>Nenhum dado de montagem disponível.</p>
+                      ) : (
+                        mapaMontagem.map((lote, li) => (
+                          <div key={li} style={{
+                            marginBottom: 16, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden',
+                          }}>
+                            {/* Header do lote */}
+                            <div className="print-lote-header" style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '8px 14px',
+                              background: 'linear-gradient(135deg, #7B1A1A, #5E1212)',
+                              color: '#fff',
+                            }}>
+                              <span style={{ fontSize: '1.1rem' }}>🍱</span>
+                              <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Lote {li + 1}</span>
+                              <span style={{
+                                background: 'rgba(255,255,255,0.2)', borderRadius: 20,
+                                padding: '2px 10px', fontSize: '0.8rem',
+                              }}>
+                                {lote.quantidade} prato(s) idêntico(s)
+                              </span>
+                            </div>
+
+                            {/* Itens do lote */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ background: '#f8fafc' }}>
+                                  <th style={{ textAlign: 'left', padding: '6px 12px', border: '1px solid #e2e8f0', fontWeight: 700, width: 100 }}>Grupo</th>
+                                  <th style={{ textAlign: 'left', padding: '6px 12px', border: '1px solid #e2e8f0', fontWeight: 700 }}>Alimento / Preparo</th>
+                                  <th style={{ textAlign: 'right', padding: '6px 12px', border: '1px solid #e2e8f0', fontWeight: 700, width: 90 }}>Gramagem</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lote.itens.map((item, ii) => {
+                                  const cor  = GRUPO_COLORS[item.grupoNome] || '#7B1A1A';
+                                  const icon = GRUPO_ICONS[item.grupoNome]  || '🥘';
+                                  const nomeExibido = item.nomeManual || item.preparo;
+                                  return (
+                                    <tr key={ii} style={{ background: ii % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                      <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: cor, textTransform: 'uppercase' }}>
+                                          {icon} {item.grupoNome}
+                                        </span>
+                                      </td>
+                                      <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0' }}>
+                                        <span style={{ fontWeight: 500 }}>{item.alimento}</span>
+                                        {item.alimento !== nomeExibido && (
+                                          <span style={{ color: '#64748b', marginLeft: 6, fontSize: '0.8rem' }}>— {nomeExibido}</span>
+                                        )}
+                                        {item.obs && (
+                                          <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: 2, fontStyle: 'italic' }}>
+                                            ⚠️ {item.obs}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '6px 12px', border: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 700, color: cor }}>
+                                        {item.gramagem > 0 ? `${item.gramagem} g` : '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))
+                      )}
+
+                      {/* Assinatura */}
+                      <div style={{
+                        marginTop: 32, paddingTop: 16, borderTop: '1px solid #e2e8f0',
+                        display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8',
+                      }}>
+                        <span>Meal Time Ultracongelados</span>
+                        {nutri && <span>Nutricionista: {nutri}</span>}
+                        <span>{dataImp}</span>
+                      </div>
+                    </div>
+
+                  </div>{/* fim print-area */}
+                </div>
+              );
+            })()}
 
             {/* ── ABA: Mapa de Montagem ── */}
             {abaDetalhe === 'montagem' && (
