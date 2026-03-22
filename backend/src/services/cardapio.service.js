@@ -3,17 +3,18 @@
 /**
  * Motor de geração de cardápio — Meal Time
  *
- * Pools vêm exclusivamente dos itensPermitidos do pedido.
- * Carboidrato, Leguminosa e Legume são todos opcionais.
- *
- * Algoritmo:
- *   - particionarComLimite(n, max): sublotes respeitando teto real
- *   - intercalarBases(bases): flatten interleaved para diversidade de fonte
- *   - Cycling simples com dedup completo (prot+carb+leg+veg)
- *   - Offset por versão e bloco garante V1 ≠ V2
+ * Proteína: escolhida pelo usuário (alimento base + gramagem + qtd pratos).
+ * Carboidrato / Leguminosa / Legume: o usuário seleciona preparos específicos.
+ *   Cada grupo tem uma gramagem de referência.
+ *   Para carboidratos: gramagem ajustada proporcionalmente usando carbs/100g (TACO),
+ *     tendo Arroz Branco (28.1g/100g) como referência fixa.
+ *   O algoritmo diversifica APENAS entre os preparos selecionados no pedido.
  */
 
 const prisma = require('../lib/prisma');
+
+// Referência fixa de carboidratos — Arroz Branco cozido (Tabela TACO/IBGE)
+const ARROZ_BRANCO_CARBS_POR_100G = 28.1;
 
 // ─── Ponto de entrada ────────────────────────────────────────────────────────
 
@@ -25,9 +26,9 @@ async function gerarCardapio(pedidoId) {
   const novoNumero   = ultimoNumero + 1;
   const { maxRepeticoes } = pedido;
 
-  const carbOpcoes = await montarOpcoesCarboidrato(pedido.itensPermitidos);
+  const carbOpcoes = montarOpcoesCarboidrato(pedido.itensPermitidos);
   const legOpcoes  = montarOpcoesSimples(pedido.itensPermitidos, 'Leguminosa');
-  const vegOpcoes  = montarOpcoesSimples(pedido.itensPermitidos, 'Legume');
+  const vegOpcoes  = montarOpcoesSimples(pedido.itensPermitidos, 'Legumes');
 
   const todosLotes = [];
   for (let blocoIdx = 0; blocoIdx < pedido.proteinas.length; blocoIdx++) {
@@ -48,28 +49,23 @@ async function gerarCardapio(pedidoId) {
 
 // ─── Particionamento ──────────────────────────────────────────────────────────
 
-/**
- * Divide `n` pratos em sublotes, cada um com no máximo `maxRepeticoes`.
- * Permite lote de 1 quando inevitável.
- *
- * Exemplos:
- *   5/max3 → [3,2]   5/max2 → [2,2,1]
- *   6/max3 → [3,3]   7/max3 → [3,2,2]   8/max2 → [2,2,2,2]
- */
 function particionarComLimite(n, maxRepeticoes) {
   if (n <= 0) return [];
   if (n <= maxRepeticoes) return [n];
   const numBlocos = Math.ceil(n / maxRepeticoes);
   const base      = Math.floor(n / numBlocos);
   const extra     = n % numBlocos;
-  // blocos com extra recebem base+1, demais recebem base
   return Array.from({ length: numBlocos }, (_, i) => (i < extra ? base + 1 : base));
 }
 
 // ─── Geração de combos por proteína ──────────────────────────────────────────
 
 function gerarLotesProteina(proteina, carbOpcoes, legOpcoes, vegOpcoes, blocoIdx, versaoNumero, maxLote) {
-  const preparos = proteina.alimentoBase.preparos;
+  let preparos = proteina.alimentoBase.preparos;
+  if (proteina.preparosIds && proteina.preparosIds.length > 0) {
+    const allowed = new Set(proteina.preparosIds);
+    preparos = preparos.filter((p) => allowed.has(p.id));
+  }
   if (preparos.length === 0) return [];
 
   const sublotes = particionarComLimite(proteina.quantidadePratos, maxLote);
@@ -80,7 +76,6 @@ function gerarLotesProteina(proteina, carbOpcoes, legOpcoes, vegOpcoes, blocoIdx
   const nLeg  = legOpcoes.length;
   const nVeg  = vegOpcoes.length;
 
-  // Offset por bloco e versão → diversidade entre proteínas e entre V1/V2
   const PRIMO_A = 37, PRIMO_B = 53;
   const offset  = blocoIdx * PRIMO_A + (versaoNumero - 1) * PRIMO_B;
 
@@ -95,25 +90,23 @@ function gerarLotesProteina(proteina, carbOpcoes, legOpcoes, vegOpcoes, blocoIdx
     const leg  = nLeg  > 0 ? legOpcoes[i % nLeg]   : null;
     const veg  = nVeg  > 0 ? vegOpcoes[i % nVeg]   : null;
 
-    // Dedup completo: prot + carb (base+preparo) + leg (base+preparo) + veg (base+preparo)
     const chave = [
       prep.id,
-      carb?.baseId ?? '', carb?.preparo.id ?? '',
-      leg?.baseId  ?? '', leg?.preparo.id  ?? '',
-      veg?.baseId  ?? '', veg?.preparo.id  ?? '',
+      carb?.preparoId ?? '',
+      leg?.preparoId  ?? '',
+      veg?.preparoId  ?? '',
     ].join('|');
 
     if (!usados.has(chave)) {
       usados.add(chave);
       const itens = [{ preparoId: prep.id, gramagem: proteina.gramagem, grupoNome: 'Proteína' }];
-      if (carb) itens.push({ preparoId: carb.preparo.id, gramagem: carb.gramagem, grupoNome: 'Carboidrato' });
-      if (leg)  itens.push({ preparoId: leg.preparo.id,  gramagem: leg.gramagem,  grupoNome: 'Leguminosa' });
-      if (veg)  itens.push({ preparoId: veg.preparo.id,  gramagem: veg.gramagem,  grupoNome: 'Legume' });
+      if (carb) itens.push({ preparoId: carb.preparoId, gramagem: carb.gramagem, grupoNome: 'Carboidrato' });
+      if (leg)  itens.push({ preparoId: leg.preparoId,  gramagem: leg.gramagem,  grupoNome: 'Leguminosa' });
+      if (veg)  itens.push({ preparoId: veg.preparoId,  gramagem: veg.gramagem,  grupoNome: 'Legumes' });
       combos.push(itens);
     }
   }
 
-  // Fallback se combinações únicas insuficientes
   while (combos.length < N) combos.push(combos[(combos.length - 1) % Math.max(combos.length, 1)]);
 
   return sublotes.map((quantidade, i) => ({ quantidade, itens: combos[i] }));
@@ -122,66 +115,68 @@ function gerarLotesProteina(proteina, carbOpcoes, legOpcoes, vegOpcoes, blocoIdx
 // ─── Montagem de pools ────────────────────────────────────────────────────────
 
 /**
- * Intercala preparos por base: [b0p0, b1p0, b2p0, b0p1, b1p1, ...]
- * Garante que índices consecutivos alternam FONTE antes de repetir preparo.
- * Cada elemento: { preparo, gramagem, baseId }
+ * Intercala preparos por alimento base: [a0p0, a1p0, a2p0, a0p1, ...]
+ * Cada elemento: { preparoId, gramagem, alimentoId }
  */
-function intercalarBases(bases) {
-  if (!bases || bases.length === 0) return [];
-  const maxP = Math.max(...bases.map((b) => b.preparos.length));
+function intercalarPreparos(grupos) {
+  if (!grupos || grupos.length === 0) return [];
+  const maxP = Math.max(...grupos.map((g) => g.preparos.length));
   const result = [];
   for (let p = 0; p < maxP; p++) {
-    for (const base of bases) {
-      if (p < base.preparos.length) {
-        result.push({ ...base.preparos[p], baseId: base.baseId });
-      }
+    for (const grupo of grupos) {
+      if (p < grupo.preparos.length) result.push(grupo.preparos[p]);
     }
   }
   return result;
 }
 
-async function montarOpcoesCarboidrato(itensPermitidos) {
+/**
+ * Pool de carboidratos.
+ * Gramagem ajustada por tabela TACO — referência fixa: Arroz Branco (28.1g carbs/100g).
+ *   targetCarbs = gramagemRef × 28.1 / 100
+ *   gramagem_preparo = targetCarbs × 100 / carbs_alimento (se disponível)
+ */
+function montarOpcoesCarboidrato(itensPermitidos) {
   const itens = itensPermitidos.filter((i) => i.grupoNome === 'Carboidrato');
   if (itens.length === 0) return [];
 
-  const bases = [];
+  const gramagemRef = itens[0].gramagemBase;
+  const targetCarbs = parseFloat((gramagemRef * ARROZ_BRANCO_CARBS_POR_100G / 100).toFixed(2));
 
+  // Agrupa por alimento para interleaving
+  const porAlimento = new Map();
   for (const item of itens) {
-    const preparos = item.alimentoBase.preparos
-      .filter((p) => p.ativo)
-      .map((p) => ({ preparo: p, gramagem: item.gramagemBase }));
-    if (preparos.length > 0)
-      bases.push({ baseId: item.alimentoBaseId, preparos });
+    const alimento   = item.preparo.alimento;
+    const carbsItem  = alimento.carboidratosPor100g;
+    const gramagem   = carbsItem
+      ? parseFloat((targetCarbs * 100 / carbsItem).toFixed(1))
+      : gramagemRef;
 
-    const equivs = await prisma.equivalenciaAlimento.findMany({
-      where: { alimentoOrigemId: item.alimentoBaseId },
-      include: { alimentoDestino: { include: { preparos: { where: { ativo: true } } } } },
-    });
-    for (const eq of equivs) {
-      if (!eq.alimentoDestino.ativo) continue;
-      const gram  = parseFloat((item.gramagemBase * eq.fator).toFixed(1));
-      const preps = eq.alimentoDestino.preparos.map((p) => ({ preparo: p, gramagem: gram }));
-      if (preps.length > 0) bases.push({ baseId: eq.alimentoDestinoId, preparos: preps });
-    }
+    if (!porAlimento.has(alimento.id)) porAlimento.set(alimento.id, []);
+    porAlimento.get(alimento.id).push({ preparoId: item.preparoId, gramagem, alimentoId: alimento.id });
   }
 
-  // Dedup por baseId (um mesmo equivalente pode surgir de múltiplos itens)
-  const seen = new Set();
-  const deduped = bases.filter(({ baseId }) => (seen.has(baseId) ? false : seen.add(baseId)));
-  return intercalarBases(deduped);
+  const grupos = Array.from(porAlimento.values()).map((preparos) => ({ preparos }));
+  return intercalarPreparos(grupos);
 }
 
+/**
+ * Pool de Leguminosa ou Legume.
+ * Usa a gramagem definida no pedido diretamente para todos os preparos.
+ */
 function montarOpcoesSimples(itensPermitidos, grupoNome) {
-  const bases = itensPermitidos
-    .filter((i) => i.grupoNome === grupoNome)
-    .map((item) => ({
-      baseId: item.alimentoBaseId,
-      preparos: item.alimentoBase.preparos
-        .filter((p) => p.ativo)
-        .map((p) => ({ preparo: p, gramagem: item.gramagemBase })),
-    }))
-    .filter((b) => b.preparos.length > 0);
-  return intercalarBases(bases);
+  const itens = itensPermitidos.filter((i) => i.grupoNome === grupoNome);
+  if (itens.length === 0) return [];
+
+  const porAlimento = new Map();
+  for (const item of itens) {
+    const alimentoId = item.preparo.alimentoId;
+    if (!porAlimento.has(alimentoId)) porAlimento.set(alimentoId, []);
+    porAlimento.get(alimentoId).push({ preparoId: item.preparoId, gramagem: item.gramagemBase, alimentoId });
+  }
+
+  const grupos = Array.from(porAlimento.values()).map((preparos) => ({ preparos }));
+  return intercalarPreparos(grupos);
 }
 
 // ─── Persistência ─────────────────────────────────────────────────────────────
@@ -209,7 +204,11 @@ async function carregarPedido(pedidoId) {
         orderBy: { quantidadePratos: 'desc' },
       },
       itensPermitidos: {
-        include: { alimentoBase: { include: { preparos: { where: { ativo: true } } } } },
+        include: {
+          preparo: {
+            include: { alimento: { select: { id: true, nome: true, carboidratosPor100g: true } } },
+          },
+        },
       },
       versoes: { orderBy: { numero: 'desc' }, take: 1 },
     },

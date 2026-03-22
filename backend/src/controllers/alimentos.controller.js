@@ -9,7 +9,7 @@ const listar = async (req, res, next) => {
       orderBy: { nome: 'asc' },
       include: {
         grupo: { select: { id: true, nome: true } },
-        _count: { select: { preparos: true } },
+        preparos: { where: { ativo: true }, orderBy: { nome: 'asc' } },
       },
     });
     res.json(alimentos);
@@ -39,12 +39,17 @@ const buscarPorId = async (req, res, next) => {
 
 const criar = async (req, res, next) => {
   try {
-    const { nome, grupoId, ativo } = req.body;
+    const { nome, grupoId, ativo, carboidratosPor100g } = req.body;
     if (!nome || !grupoId) {
       return res.status(400).json({ error: 'Nome e grupoId são obrigatórios.' });
     }
     const alimento = await prisma.alimentoBase.create({
-      data: { nome, grupoId, ativo: ativo !== undefined ? ativo : true },
+      data: {
+        nome,
+        grupoId,
+        ativo: ativo !== undefined ? ativo : true,
+        carboidratosPor100g: carboidratosPor100g != null ? parseFloat(carboidratosPor100g) : null,
+      },
       include: { grupo: { select: { id: true, nome: true } } },
     });
     res.status(201).json(alimento);
@@ -56,10 +61,14 @@ const criar = async (req, res, next) => {
 const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { nome, grupoId, ativo } = req.body;
+    const { nome, grupoId, ativo, carboidratosPor100g } = req.body;
+    const data = { nome, grupoId, ativo };
+    if (carboidratosPor100g !== undefined) {
+      data.carboidratosPor100g = carboidratosPor100g != null ? parseFloat(carboidratosPor100g) : null;
+    }
     const alimento = await prisma.alimentoBase.update({
       where: { id },
-      data: { nome, grupoId, ativo },
+      data,
       include: { grupo: { select: { id: true, nome: true } } },
     });
     res.json(alimento);

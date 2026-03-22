@@ -2,7 +2,7 @@
 
 const prisma = require('../lib/prisma');
 
-const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legume'];
+const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes'];
 
 async function gerarOrdem(pedidoId) {
   const versaoAtiva = await prisma.cardapioVersao.findFirst({

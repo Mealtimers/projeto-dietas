@@ -7,6 +7,7 @@ const STATUS_LABELS = {
   REPROVADO: 'Reprovado',
   EM_PRODUCAO: 'Em Produção',
   CONCLUIDO: 'Concluído',
+  CANCELADO: 'Cancelado',
   // Aprovação
   // (shared with above)
   // Ordem

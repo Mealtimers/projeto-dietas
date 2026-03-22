@@ -22,24 +22,25 @@ model AlimentoBase {
   grupoId              String
   grupo                GrupoAlimentar           @relation(fields: [grupoId], references: [id])
   ativo                Boolean                  @default(true)
+  carboidratosPor100g  Float?                   // g de carboidratos por 100g — usado para equivalência nutricional
   createdAt            DateTime                 @default(now())
   preparos             PreparoAlimento[]
   proteinasPedido      PedidoProteina[]
-  itensPermitidos      PedidoItemPermitido[]
   equivalenciasOrigem  EquivalenciaAlimento[]   @relation("EquivOrigem")
   equivalenciasDestino EquivalenciaAlimento[]   @relation("EquivDestino")
 }
 
 model PreparoAlimento {
-  id         String       @id @default(cuid())
-  alimentoId String
-  alimento   AlimentoBase @relation(fields: [alimentoId], references: [id], onDelete: Cascade)
-  nome       String
-  descricao  String?
-  gramagem   Float?
-  ativo      Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  itensLote  ItemLote[]
+  id              String                @id @default(cuid())
+  alimentoId      String
+  alimento        AlimentoBase          @relation(fields: [alimentoId], references: [id], onDelete: Cascade)
+  nome            String
+  descricao       String?
+  gramagem        Float?
+  ativo           Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  itensLote       ItemLote[]
+  itensPermitidos PedidoItemPermitido[]
 }
 
 model EquivalenciaAlimento {
@@ -74,6 +75,7 @@ enum StatusPedido {
   REPROVADO
   EM_PRODUCAO
   CONCLUIDO
+  CANCELADO
 }
 
 model PedidoDieta {
@@ -84,6 +86,8 @@ model PedidoDieta {
   maxRepeticoes     Int
   minRepeticoesLote Int                   @default(2)
   observacoes       String?
+  obsLegumes        String?               // OBS sobre legumes proibidos (exibida em destaque na produção)
+  nutricionista     String?               // Nome do nutricionista responsável (opcional)
   status            StatusPedido          @default(PENDENTE)
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
@@ -103,21 +107,25 @@ model PedidoProteina {
   alimentoBase     AlimentoBase @relation(fields: [alimentoBaseId], references: [id])
   gramagem         Float
   quantidadePratos Int
+  preparosIds      String[]     @default([]) // IDs dos preparos permitidos; vazio = todos os ativos
 
   @@unique([pedidoId, alimentoBaseId])
 }
 
-/// Itens permitidos para combinação — Carboidrato | Leguminosa | Legume
+/// Preparos selecionados para o cardápio — Carboidrato | Leguminosa | Legume
+/// Seleção em dois níveis: o usuário escolhe quais preparos específicos participam.
+/// A gramagem é definida uma vez por grupo (mesma para todos os preparos do grupo).
+/// Para carboidratos, o algoritmo ajusta a gramagem via tabela nutricional (TACO).
 model PedidoItemPermitido {
-  id             String       @id @default(cuid())
-  pedidoId       String
-  pedido         PedidoDieta  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
-  grupoNome      String       // 'Carboidrato', 'Leguminosa', 'Legume'
-  alimentoBaseId String
-  alimentoBase   AlimentoBase @relation(fields: [alimentoBaseId], references: [id])
-  gramagemBase   Float
+  id           String          @id @default(cuid())
+  pedidoId     String
+  pedido       PedidoDieta     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  grupoNome    String          // 'Carboidrato', 'Leguminosa', 'Legume'
+  preparoId    String
+  preparo      PreparoAlimento @relation(fields: [preparoId], references: [id])
+  gramagemBase Float
 
-  @@unique([pedidoId, alimentoBaseId])
+  @@unique([pedidoId, preparoId])
 }
 
 /// Versão/geração de cardápio — histórico preservado; apenas uma ativa por pedido

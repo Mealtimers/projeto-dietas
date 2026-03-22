@@ -1,6 +1,26 @@
 import axios from 'axios';
+import { getToken, clearSession } from '../auth';
 
 const api = axios.create({ baseURL: '/api' });
+
+// Envia token JWT em toda requisição
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers['Authorization'] = `Bearer ${token}`;
+  return config;
+});
+
+// Redireciona para login se sessão expirar
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      clearSession();
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
 
 export const gruposApi = {
   listar: () => api.get('/grupos'),
@@ -31,13 +51,16 @@ export const clientesApi = {
   criar: (data) => api.post('/clientes', data),
   atualizar: (id, data) => api.put(`/clientes/${id}`, data),
   deletar: (id) => api.delete(`/clientes/${id}`),
+  deletarVarios: (ids) => api.delete('/clientes', { data: { ids } }),
 };
 
 export const pedidosApi = {
   listar: () => api.get('/pedidos'),
   buscar: (id) => api.get(`/pedidos/${id}`),
   criar: (data) => api.post('/pedidos', data),
+  atualizar: (id, data) => api.put(`/pedidos/${id}`, data),
   deletar: (id) => api.delete(`/pedidos/${id}`),
+  deletarVarios: (ids) => api.delete('/pedidos', { data: { ids } }),
   gerarCardapio: (id) => api.post(`/pedidos/${id}/gerar`),
   atualizarStatus: (id, data) => api.put(`/pedidos/${id}/status`, data),
 };

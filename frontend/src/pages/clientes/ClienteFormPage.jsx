@@ -43,8 +43,8 @@ export default function ClienteFormPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (!form.nome.trim() || !form.email.trim()) {
-      setError('Nome e email são obrigatórios.');
+    if (!form.nome.trim() || !form.email.trim() || !form.telefone.trim()) {
+      setError('Nome completo, email e telefone são obrigatórios.');
       return;
     }
     setSaving(true);
@@ -77,7 +77,7 @@ export default function ClienteFormPage() {
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label required">Nome</label>
+                <label className="form-label required">Nome Completo</label>
                 <input
                   type="text"
                   name="nome"
@@ -101,7 +101,7 @@ export default function ClienteFormPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Telefone</label>
+                <label className="form-label required">Telefone</label>
                 <input
                   type="text"
                   name="telefone"
@@ -109,6 +109,7 @@ export default function ClienteFormPage() {
                   value={form.telefone}
                   onChange={handleChange}
                   placeholder="(11) 99999-9999"
+                  required
                 />
               </div>
             </div>

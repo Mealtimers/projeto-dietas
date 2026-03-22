@@ -41,8 +41,8 @@ const buscarPorId = async (req, res, next) => {
 const criar = async (req, res, next) => {
   try {
     const { nome, email, telefone, observacoes } = req.body;
-    if (!nome || !email) {
-      return res.status(400).json({ error: 'Nome e email são obrigatórios.' });
+    if (!nome || !email || !telefone) {
+      return res.status(400).json({ error: 'Nome completo, email e telefone são obrigatórios.' });
     }
     const cliente = await prisma.cliente.create({
       data: { nome, email, telefone, observacoes },
@@ -57,6 +57,9 @@ const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { nome, email, telefone, observacoes } = req.body;
+    if (!nome || !telefone) {
+      return res.status(400).json({ error: 'Nome completo e telefone são obrigatórios.' });
+    }
     const cliente = await prisma.cliente.update({
       where: { id },
       data: { nome, email, telefone, observacoes },
@@ -77,4 +80,17 @@ const deletar = async (req, res, next) => {
   }
 };
 
-module.exports = { listar, buscarPorId, criar, atualizar, deletar };
+const deletarVarios = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: 'Informe ao menos um ID.' });
+
+    await prisma.cliente.deleteMany({ where: { id: { in: ids } } });
+    res.json({ deletados: ids.length, mensagem: `${ids.length} cliente(s) excluído(s) com sucesso.` });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listar, buscarPorId, criar, atualizar, deletar, deletarVarios };

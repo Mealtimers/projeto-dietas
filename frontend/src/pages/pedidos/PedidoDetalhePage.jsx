@@ -3,13 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { pedidosApi, aprovacoesApi, ordensApi } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 
-const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legume'];
+const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes'];
 
 const GRUPO_COLOR = {
   Proteína:    { bg: '#fff7ed', border: '#fed7aa', text: '#c2410c' },
   Carboidrato: { bg: '#fefce8', border: '#fde68a', text: '#92400e' },
   Leguminosa:  { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' },
-  Legume:      { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+  Legumes:     { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
 };
 
 export default function PedidoDetalhePage() {
@@ -120,6 +120,10 @@ export default function PedidoDetalhePage() {
         <h1>Pedido — {pedido.cliente?.nome}</h1>
         <div className="btn-group">
           <StatusBadge status={pedido.status} />
+          {!['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'].includes(pedido.status) && (
+            <Link to={`/pedidos/${id}/editar`} className="btn btn-secondary">Editar</Link>
+          )}
+          <Link to={`/pedidos/novo?repetirDe=${id}`} className="btn btn-ghost" title="Repetir este pedido">🔄 Repetir</Link>
           <Link to="/pedidos" className="btn btn-outline">Voltar</Link>
         </div>
       </div>
@@ -147,51 +151,109 @@ export default function PedidoDetalhePage() {
               <span style={{ display: 'block', marginTop: 4 }}>{pedido.observacoes}</span>
             </div>
           )}
+          {pedido.nutricionista && (
+            <div className="detail-item">
+              <label>Nutricionista Responsável</label>
+              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>👨‍⚕️ {pedido.nutricionista}</span>
+            </div>
+          )}
         </div>
 
         {/* ── Proteínas ── */}
         {pedido.proteinas?.length > 0 && (
           <div className="card" style={{ marginBottom: 20 }}>
             <div className="card-title">Distribuição de Proteínas</div>
-            <div className="table-wrapper">
-              <table>
-                <thead><tr><th>Proteína Base</th><th>Gramagem</th><th>Pratos</th></tr></thead>
-                <tbody>
-                  {pedido.proteinas.map((p) => (
-                    <tr key={p.id}>
-                      <td style={{ fontWeight: 500 }}>{p.alimentoBase?.nome}</td>
-                      <td>{p.gramagem}g</td>
-                      <td><span style={{ fontWeight: 700, color: 'var(--primary-dark)' }}>{p.quantidadePratos}×</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pedido.proteinas.map((p) => {
+                const todosPreparos = p.alimentoBase?.preparos ?? [];
+                const preparosSel   = p.preparosIds?.length > 0
+                  ? todosPreparos.filter((prep) => p.preparosIds.includes(prep.id))
+                  : todosPreparos;
+                const cor = GRUPO_COLOR['Proteína'];
+                return (
+                  <div key={p.id} style={{ padding: '10px 14px', border: '1px solid var(--gray-200)', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: preparosSel.length > 0 ? 8 : 0 }}>
+                      <span style={{ fontWeight: 600, flex: 1 }}>{p.alimentoBase?.nome}</span>
+                      <span style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>{p.gramagem}g</span>
+                      <span style={{ fontWeight: 700, color: 'var(--primary-dark)', minWidth: 40, textAlign: 'right' }}>{p.quantidadePratos}×</span>
+                    </div>
+                    {preparosSel.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {preparosSel.map((prep) => (
+                          <span key={prep.id} style={{
+                            padding: '3px 10px', borderRadius: 14, fontSize: '0.8rem',
+                            background: cor.bg, border: `1px solid ${cor.border}`, color: cor.text,
+                          }}>
+                            {prep.nome}
+                          </span>
+                        ))}
+                        {p.preparosIds?.length === 0 && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', fontStyle: 'italic', alignSelf: 'center' }}>todos os preparos ativos</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ── Itens Permitidos ── */}
+        {/* ── Preparos Selecionados ── */}
         {pedido.itensPermitidos?.length > 0 && (
           <div className="card" style={{ marginBottom: 20 }}>
-            <div className="card-title">Itens Permitidos</div>
-            {['Carboidrato', 'Leguminosa', 'Legume'].map((grupo) => {
+            <div className="card-title">Preparos Selecionados</div>
+            {pedido.obsLegumes && (
+              <div style={{
+                background: '#fffbeb', border: '2px solid #f59e0b',
+                borderRadius: 8, padding: '10px 14px', marginBottom: 14,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                    OBS — Legumes proibidos
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: '#78350f' }}>{pedido.obsLegumes}</div>
+                </div>
+              </div>
+            )}
+            {['Carboidrato', 'Leguminosa', 'Legumes'].map((grupo) => {
               const itens = pedido.itensPermitidos.filter((i) => i.grupoNome === grupo);
               if (itens.length === 0) return null;
               const cor = GRUPO_COLOR[grupo];
+              const gramagem = itens[0]?.gramagemBase;
+              // Agrupa por alimento
+              const porAlimento = {};
+              for (const item of itens) {
+                const nomeAlimento = item.preparo?.alimento?.nome ?? item.preparo?.nome ?? '—';
+                if (!porAlimento[nomeAlimento]) porAlimento[nomeAlimento] = [];
+                porAlimento[nomeAlimento].push(item.preparo?.nome ?? '—');
+              }
               return (
                 <div key={grupo} style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: cor.text, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                    {grupo}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: cor.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {grupo}
+                    </span>
+                    <span style={{ fontSize: '0.78rem', color: cor.text, background: cor.bg, border: `1px solid ${cor.border}`, borderRadius: 10, padding: '1px 8px', fontWeight: 600 }}>
+                      {gramagem}g
+                      {grupo === 'Carboidrato' && <span style={{ fontWeight: 400, marginLeft: 4 }}>ref. Arroz Branco</span>}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {itens.map((item) => (
-                      <span key={item.id} style={{
-                        padding: '4px 14px', borderRadius: 20, fontSize: '0.875rem',
-                        background: cor.bg, border: `1px solid ${cor.border}`, color: cor.text,
-                      }}>
-                        {item.alimentoBase?.nome}
-                        <span style={{ marginLeft: 6, fontWeight: 700 }}>{item.gramagemBase}g</span>
-                      </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {Object.entries(porAlimento).map(([alimento, preparos]) => (
+                      <div key={alimento} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-600)', minWidth: 100 }}>{alimento}</span>
+                        {preparos.map((p, i) => (
+                          <span key={i} style={{
+                            padding: '3px 12px', borderRadius: 14, fontSize: '0.8rem',
+                            background: cor.bg, border: `1px solid ${cor.border}`, color: cor.text,
+                          }}>
+                            {p}
+                          </span>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>

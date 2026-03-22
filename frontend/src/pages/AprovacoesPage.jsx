@@ -14,7 +14,7 @@ export default function AprovacoesPage() {
   const loadPedidos = () => {
     return pedidosApi.listar().then((res) => {
       const aguardando = res.data.filter((p) =>
-        ['AGUARDANDO_APROVACAO', 'GERADO'].includes(p.status)
+        p.status === 'AGUARDANDO_APROVACAO'
       );
       setPedidosAguardando(aguardando);
     });
@@ -35,7 +35,9 @@ export default function AprovacoesPage() {
         status,
         observacoes: observacoes[pedidoId] || '',
       });
-      setSuccess(`Pedido ${status === 'APROVADO' ? 'aprovado' : 'reprovado'} com sucesso!`);
+      const msg = `Pedido ${status === 'APROVADO' ? 'aprovado' : 'reprovado'} com sucesso!`;
+      setSuccess(msg);
+      setTimeout(() => setSuccess(null), 3500);
       setObservacoes((prev) => ({ ...prev, [pedidoId]: '' }));
       await loadPedidos();
     } catch (err) {
@@ -62,7 +64,8 @@ export default function AprovacoesPage() {
         {!loading && pedidosAguardando.length === 0 && (
           <div className="card">
             <div className="empty-state">
-              <p>Nenhum pedido aguardando aprovação.</p>
+              <p>Nenhum pedido aguardando aprovação no momento.</p>
+              <p style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>Pedidos aparecem aqui quando enviados para aprovação.</p>
               <Link to="/pedidos" className="btn btn-outline">Ver todos os pedidos</Link>
             </div>
           </div>

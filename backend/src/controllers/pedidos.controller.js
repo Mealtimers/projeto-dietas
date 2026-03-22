@@ -10,25 +10,36 @@ const TRANSICOES = {
   AGUARDANDO_APROVACAO: ['APROVADO', 'REPROVADO', 'GERADO'],
   APROVADO:             ['EM_PRODUCAO'],
   REPROVADO:            ['GERADO'],
-  EM_PRODUCAO:          ['CONCLUIDO'],
+  EM_PRODUCAO:          ['CONCLUIDO', 'CANCELADO'],
   CONCLUIDO:            [],
+  CANCELADO:            [],
 };
 
-// Status que bloqueiam alteração estrutural do pedido
-const STATUS_BLOQUEADO = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO'];
+// Status que bloqueiam edição estrutural do pedido
+const STATUS_BLOQUEADO = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
+
+// Status que bloqueiam exclusão
+const STATUS_BLOQUEADO_EXCLUSAO = ['APROVADO', 'CONCLUIDO', 'EM_PRODUCAO'];
 
 function includeDetalhe() {
   return {
     cliente: { select: { id: true, nome: true, email: true } },
     proteinas: {
       include: {
-        alimentoBase: { include: { grupo: { select: { id: true, nome: true } } } },
+        alimentoBase: {
+          include: {
+            grupo:   { select: { id: true, nome: true } },
+            preparos: { where: { ativo: true }, select: { id: true, nome: true } },
+          },
+        },
       },
       orderBy: { quantidadePratos: 'desc' },
     },
     itensPermitidos: {
       include: {
-        alimentoBase: { include: { grupo: { select: { id: true, nome: true } } } },
+        preparo: {
+          include: { alimento: { select: { id: true, nome: true, carboidratosPor100g: true } } },
+        },
       },
     },
     versoes: {
@@ -91,10 +102,12 @@ const criar = async (req, res, next) => {
       maxRepeticoes,
       minRepeticoesLote,
       observacoes,
+      obsLegumes,
+      nutricionista,
       proteinas    = [],
-      carboidratos = [],
-      leguminosas  = [],
-      legumes      = [],
+      carboidratos = {},
+      leguminosas  = {},
+      legumes      = {},
     } = req.body;
 
     if (!clienteId || !totalPratos || !maxRepeticoes)
@@ -120,6 +133,8 @@ const criar = async (req, res, next) => {
           maxRepeticoes:     parseInt(maxRepeticoes),
           minRepeticoesLote: minRepeticoesLote ? parseInt(minRepeticoesLote) : 2,
           observacoes,
+          obsLegumes: obsLegumes || null,
+          nutricionista: nutricionista || null,
           status: 'PENDENTE',
         },
       });
@@ -130,14 +145,24 @@ const criar = async (req, res, next) => {
           alimentoBaseId:   p.alimentoBaseId,
           gramagem:         parseFloat(p.gramagem),
           quantidadePratos: parseInt(p.quantidadePratos),
+          preparosIds:      Array.isArray(p.preparosIds) ? p.preparosIds : [],
         })),
       });
 
-      const itens = [
-        ...carboidratos.map((p) => ({ pedidoId: novo.id, grupoNome: 'Carboidrato', alimentoBaseId: p.alimentoBaseId, gramagemBase: parseFloat(p.gramagemBase) })),
-        ...leguminosas.map((p)  => ({ pedidoId: novo.id, grupoNome: 'Leguminosa',  alimentoBaseId: p.alimentoBaseId, gramagemBase: parseFloat(p.gramagemBase) })),
-        ...legumes.map((p)      => ({ pedidoId: novo.id, grupoNome: 'Legume',       alimentoBaseId: p.alimentoBaseId, gramagemBase: parseFloat(p.gramagemBase) })),
+      const gruposPayload = [
+        { grupoNome: 'Carboidrato', dados: carboidratos },
+        { grupoNome: 'Leguminosa',  dados: leguminosas  },
+        { grupoNome: 'Legumes',     dados: legumes      },
       ];
+      const itens = [];
+      for (const { grupoNome, dados } of gruposPayload) {
+        if (!dados || !Array.isArray(dados.preparos) || dados.preparos.length === 0) continue;
+        const gramagem = parseFloat(dados.gramagem);
+        if (!gramagem || gramagem <= 0) continue;
+        for (const preparoId of dados.preparos) {
+          itens.push({ pedidoId: novo.id, grupoNome, preparoId, gramagemBase: gramagem });
+        }
+      }
       if (itens.length > 0)
         await tx.pedidoItemPermitido.createMany({ data: itens });
 
@@ -155,13 +180,100 @@ const criar = async (req, res, next) => {
   }
 };
 
+const atualizar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      totalPratos,
+      maxRepeticoes,
+      minRepeticoesLote,
+      observacoes,
+      obsLegumes,
+      nutricionista,
+      proteinas    = [],
+      carboidratos = {},
+      leguminosas  = {},
+      legumes      = {},
+    } = req.body;
+
+    const pedido = await prisma.pedidoDieta.findUnique({ where: { id } });
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    if (STATUS_BLOQUEADO.includes(pedido.status))
+      return res.status(400).json({ error: `Pedido com status "${pedido.status}" não pode ser editado.` });
+
+    if (parseInt(totalPratos) < 5)
+      return res.status(400).json({ error: 'O pedido deve ter no mínimo 5 pratos.' });
+
+    if (proteinas.length === 0)
+      return res.status(400).json({ error: 'Informe ao menos uma proteína.' });
+
+    const somaProteinas = proteinas.reduce((s, p) => s + parseInt(p.quantidadePratos || 0), 0);
+    if (somaProteinas !== parseInt(totalPratos))
+      return res.status(400).json({
+        error: `Soma das proteínas (${somaProteinas}) deve ser igual a totalPratos (${totalPratos}).`,
+      });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pedidoDieta.update({
+        where: { id },
+        data: {
+          totalPratos:       parseInt(totalPratos),
+          maxRepeticoes:     parseInt(maxRepeticoes),
+          minRepeticoesLote: minRepeticoesLote ? parseInt(minRepeticoesLote) : 2,
+          observacoes,
+          obsLegumes: obsLegumes || null,
+          nutricionista: nutricionista || null,
+          status: 'PENDENTE',
+        },
+      });
+
+      await tx.pedidoProteina.deleteMany({ where: { pedidoId: id } });
+      await tx.pedidoProteina.createMany({
+        data: proteinas.map((p) => ({
+          pedidoId:         id,
+          alimentoBaseId:   p.alimentoBaseId,
+          gramagem:         parseFloat(p.gramagem),
+          quantidadePratos: parseInt(p.quantidadePratos),
+          preparosIds:      Array.isArray(p.preparosIds) ? p.preparosIds : [],
+        })),
+      });
+
+      await tx.pedidoItemPermitido.deleteMany({ where: { pedidoId: id } });
+      const gruposPayload = [
+        { grupoNome: 'Carboidrato', dados: carboidratos },
+        { grupoNome: 'Leguminosa',  dados: leguminosas  },
+        { grupoNome: 'Legumes',     dados: legumes      },
+      ];
+      const itens = [];
+      for (const { grupoNome, dados } of gruposPayload) {
+        if (!dados || !Array.isArray(dados.preparos) || dados.preparos.length === 0) continue;
+        const gramagem = parseFloat(dados.gramagem);
+        if (!gramagem || gramagem <= 0) continue;
+        for (const preparoId of dados.preparos) {
+          itens.push({ pedidoId: id, grupoNome, preparoId, gramagemBase: gramagem });
+        }
+      }
+      if (itens.length > 0)
+        await tx.pedidoItemPermitido.createMany({ data: itens });
+    });
+
+    const pedidoCompleto = await prisma.pedidoDieta.findUnique({
+      where: { id },
+      include: includeDetalhe(),
+    });
+    res.json(pedidoCompleto);
+  } catch (err) {
+    next(err);
+  }
+};
+
 const deletar = async (req, res, next) => {
   try {
     const { id } = req.params;
     const pedido = await prisma.pedidoDieta.findUnique({ where: { id } });
     if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
-    if (STATUS_BLOQUEADO.includes(pedido.status))
-      return res.status(400).json({ error: `Pedido com status "${pedido.status}" não pode ser excluído.` });
+    if (STATUS_BLOQUEADO_EXCLUSAO.includes(pedido.status))
+      return res.status(400).json({ error: `Pedido com status "${pedido.status}" não pode ser excluído. Cancele-o primeiro.` });
     await prisma.pedidoDieta.delete({ where: { id } });
     res.status(204).send();
   } catch (err) {
@@ -218,4 +330,29 @@ const atualizarStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { listar, buscarPorId, criar, deletar, gerarCardapio, atualizarStatus };
+const deletarVarios = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: 'Informe ao menos um ID.' });
+
+    const pedidos = await prisma.pedidoDieta.findMany({ where: { id: { in: ids } } });
+    const deletaveis = pedidos.filter((p) => !STATUS_BLOQUEADO_EXCLUSAO.includes(p.status));
+    const bloqueados = pedidos.filter((p) =>  STATUS_BLOQUEADO_EXCLUSAO.includes(p.status));
+
+    if (deletaveis.length > 0)
+      await prisma.pedidoDieta.deleteMany({ where: { id: { in: deletaveis.map((p) => p.id) } } });
+
+    res.json({
+      deletados:  deletaveis.length,
+      bloqueados: bloqueados.length,
+      mensagem:   bloqueados.length > 0
+        ? `${deletaveis.length} pedido(s) excluído(s). ${bloqueados.length} não pôde(ram) ser excluído(s) por restrição de status.`
+        : `${deletaveis.length} pedido(s) excluído(s) com sucesso.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listar, buscarPorId, criar, atualizar, deletar, deletarVarios, gerarCardapio, atualizarStatus };
