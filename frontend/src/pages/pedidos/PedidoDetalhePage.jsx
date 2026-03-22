@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { pedidosApi, aprovacoesApi, ordensApi } from '../../services/api';
+import { pedidosApi, aprovacoesApi, ordensApi, lotesApi } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 
-const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes'];
+const GRUPO_ORDER = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes', 'Molho'];
 
 const GRUPO_COLOR = {
   Proteína:    { bg: '#fff7ed', border: '#fed7aa', text: '#c2410c' },
   Carboidrato: { bg: '#fefce8', border: '#fde68a', text: '#92400e' },
   Leguminosa:  { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' },
   Legumes:     { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+  Molho:       { bg: '#fdf4ff', border: '#e9d5ff', text: '#7c3aed' },
 };
 
 export default function PedidoDetalhePage() {
@@ -23,6 +24,17 @@ export default function PedidoDetalhePage() {
   const [enviandoAprovacao, setEnviandoAprovacao] = useState(false);
   const [gerandoOrdem, setGerandoOrdem] = useState(false);
   const [versaoSelecionada, setVersaoSelecionada] = useState(null);
+
+  // Edit per lote
+  const [editandoLoteId, setEditandoLoteId] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Molho
+  const [molhoModalLoteId, setMolhoModalLoteId] = useState(null);
+  const [molhos, setMolhos] = useState([]);
+  const [loadingMolhos, setLoadingMolhos] = useState(false);
+  const [addingMolho, setAddingMolho] = useState(false);
 
   const loadPedido = useCallback(async () => {
     const res = await pedidosApi.buscar(id);
@@ -85,32 +97,140 @@ export default function PedidoDetalhePage() {
     }
   };
 
-  const formatDate = (date) => date
-    ? new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : '-';
+  // ── Edit handlers ──────────────────────────────────────────────────────────
+
+  const startEdit = (lote) => {
+    const initial = {};
+    lote.itens.forEach((item) => {
+      if (item.grupoNome !== 'Molho') initial[item.id] = item.preparoId;
+    });
+    setEditData(initial);
+    setEditandoLoteId(lote.id);
+    setMolhoModalLoteId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditandoLoteId(null);
+    setEditData({});
+  };
+
+  const saveEdit = async (lote) => {
+    setSavingEdit(true);
+    setError(null);
+    try {
+      const changed = lote.itens.filter(
+        (item) => item.grupoNome !== 'Molho' && editData[item.id] && editData[item.id] !== item.preparoId
+      );
+      await Promise.all(
+        changed.map((item) =>
+          lotesApi.atualizarItem(lote.id, item.id, {
+            preparoId: editData[item.id],
+            gramagem: item.gramagem,
+          })
+        )
+      );
+      showSuccess('Refeição atualizada!');
+      setEditandoLoteId(null);
+      setEditData({});
+      await loadPedido();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar edição.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ── Molho handlers ─────────────────────────────────────────────────────────
+
+  const openMolhoModal = async (loteId) => {
+    setMolhoModalLoteId((prev) => (prev === loteId ? null : loteId));
+    setEditandoLoteId(null);
+    if (molhos.length === 0) {
+      setLoadingMolhos(true);
+      try {
+        const res = await lotesApi.molhos();
+        setMolhos(res.data);
+      } catch {
+        setError('Erro ao carregar molhos.');
+      } finally {
+        setLoadingMolhos(false);
+      }
+    }
+  };
+
+  const handleAdicionarMolho = async (loteId, preparoId) => {
+    setAddingMolho(true);
+    setError(null);
+    try {
+      await lotesApi.adicionarMolho(loteId, { preparoId });
+      await loadPedido();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao adicionar molho.');
+    } finally {
+      setAddingMolho(false);
+    }
+  };
+
+  const handleRemoverMolho = async (loteId, itemId) => {
+    setError(null);
+    try {
+      await lotesApi.removerItem(loteId, itemId);
+      await loadPedido();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao remover molho.');
+    }
+  };
+
+  const formatDate = (date) =>
+    date
+      ? new Date(date).toLocaleDateString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        })
+      : '-';
 
   if (loading) return <div className="loading">Carregando...</div>;
   if (error && !pedido) return <div className="page-content"><div className="alert alert-error">{error}</div></div>;
   if (!pedido) return null;
 
-  const canGerar         = pedido.status === 'PENDENTE';
-  const canReGerar       = ['GERADO', 'REPROVADO'].includes(pedido.status);
-  const canEnviarAprov   = pedido.status === 'GERADO';
-  const canGerarOrdem    = pedido.status === 'APROVADO' && !pedido.ordemProducao;
+  const canGerar        = pedido.status === 'PENDENTE';
+  const canReGerar      = ['GERADO', 'REPROVADO'].includes(pedido.status);
+  const canEnviarAprov  = pedido.status === 'GERADO';
+  const canGerarOrdem   = pedido.status === 'APROVADO' && !pedido.ordemProducao;
 
-  const versoes      = pedido.versoes || [];
-  const versaoAtiva  = versoes.find((v) => v.ativo);
+  const versoes       = pedido.versoes || [];
+  const versaoAtiva   = versoes.find((v) => v.ativo);
   const versaoExibida = versaoSelecionada
     ? versoes.find((v) => v.id === versaoSelecionada)
     : versaoAtiva;
+
+  const canEditCardapio = versaoAtiva && ['GERADO', 'REPROVADO'].includes(pedido.status);
 
   const totalPratosVersao = versaoExibida
     ? versaoExibida.lotes.reduce((s, l) => s + l.quantidade, 0)
     : 0;
 
-  // Ordem de produção — parse itensConsolidados
-  const ordem    = pedido.ordemProducao;
-  const dadosOrdem = ordem?.itensConsolidados ?? null;
+  // Build preparos lookup for edit mode
+  const preparosPorGrupo = useMemo(() => {
+    if (!pedido) return {};
+    const map = { Carboidrato: [], Leguminosa: [], Legumes: [], 'Proteína': {} };
+    ['Carboidrato', 'Leguminosa', 'Legumes'].forEach((g) => {
+      map[g] = pedido.itensPermitidos
+        .filter((i) => i.grupoNome === g)
+        .map((i) => i.preparo)
+        .filter(Boolean);
+    });
+    pedido.proteinas.forEach((p) => {
+      const todos = p.alimentoBase?.preparos ?? [];
+      const permitidos =
+        p.preparosIds?.length > 0 ? todos.filter((prep) => p.preparosIds.includes(prep.id)) : todos;
+      map['Proteína'][p.alimentoBaseId] = permitidos;
+    });
+    return map;
+  }, [pedido]);
+
+  const ordem           = pedido.ordemProducao;
+  const dadosOrdem      = ordem?.itensConsolidados ?? null;
   const consolidadoCozinha = dadosOrdem?.consolidadoCozinha ?? [];
   const mapaMontagem       = dadosOrdem?.mapaMontagem       ?? [];
 
@@ -129,7 +249,7 @@ export default function PedidoDetalhePage() {
       </div>
 
       <div className="page-content">
-        {error     && <div className="alert alert-error"   style={{ marginBottom: 16 }}>{error}</div>}
+        {error      && <div className="alert alert-error"   style={{ marginBottom: 16 }}>{error}</div>}
         {msgSuccess && <div className="alert alert-success" style={{ marginBottom: 16 }}>{msgSuccess}</div>}
 
         {/* ── Informações ── */}
@@ -212,7 +332,7 @@ export default function PedidoDetalhePage() {
                 <span style={{ fontSize: '1.1rem' }}>⚠️</span>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
-                    OBS — Legumes proibidos
+                    OBS — Mix / Legumes proibidos
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#78350f' }}>{pedido.obsLegumes}</div>
                 </div>
@@ -223,7 +343,6 @@ export default function PedidoDetalhePage() {
               if (itens.length === 0) return null;
               const cor = GRUPO_COLOR[grupo];
               const gramagem = itens[0]?.gramagemBase;
-              // Agrupa por alimento
               const porAlimento = {};
               for (const item of itens) {
                 const nomeAlimento = item.preparo?.alimento?.nome ?? item.preparo?.nome ?? '—';
@@ -328,7 +447,7 @@ export default function PedidoDetalhePage() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--gray-600)' }}>Geração:</span>
               {versoes.map((v) => {
-                const ativa   = v.ativo;
+                const ativa      = v.ativo;
                 const selecionada = versaoSelecionada === v.id || (versaoSelecionada === null && ativa);
                 return (
                   <button
@@ -363,47 +482,250 @@ export default function PedidoDetalhePage() {
                   {[...versaoExibida.lotes]
                     .sort((a, b) => b.quantidade - a.quantidade)
                     .map((lote) => {
-                      const itensOrdenados = [...(lote.itens || [])].sort((a, b) =>
-                        GRUPO_ORDER.indexOf(a.grupoNome) - GRUPO_ORDER.indexOf(b.grupoNome)
+                      const isEditing = editandoLoteId === lote.id;
+                      const isMolhoOpen = molhoModalLoteId === lote.id;
+
+                      const itensOrdenados = [...(lote.itens || [])].sort(
+                        (a, b) => GRUPO_ORDER.indexOf(a.grupoNome) - GRUPO_ORDER.indexOf(b.grupoNome)
                       );
+
+                      const molhosDoLote  = itensOrdenados.filter((i) => i.grupoNome === 'Molho');
+                      const itensNormais  = itensOrdenados.filter((i) => i.grupoNome !== 'Molho');
+
                       return (
                         <div key={lote.id} style={{
-                          display: 'flex', gap: 16, padding: 14,
-                          border: '1px solid var(--gray-200)', borderRadius: 8, alignItems: 'flex-start',
+                          border: `1px solid ${isEditing ? 'var(--primary)' : 'var(--gray-200)'}`,
+                          borderRadius: 8, overflow: 'hidden',
+                          transition: 'border-color 0.15s',
                         }}>
-                          <div style={{
-                            minWidth: 52, height: 52, borderRadius: 8,
-                            background: 'var(--primary)', color: '#fff',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center',
-                            justifyContent: 'center', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0,
-                          }}>
-                            {lote.quantidade}
-                            <span style={{ fontSize: '0.6rem', fontWeight: 400 }}>pratos</span>
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            {itensOrdenados.map((item) => {
-                              const cor = GRUPO_COLOR[item.grupoNome] || {};
-                              return (
-                                <div key={item.id} style={{
-                                  display: 'flex', alignItems: 'baseline', gap: 8,
-                                  paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
-                                }}>
-                                  <span style={{
-                                    fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
-                                    minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85,
+                          {/* Lote header */}
+                          <div style={{ display: 'flex', gap: 16, padding: 14, alignItems: 'flex-start' }}>
+                            <div style={{
+                              minWidth: 52, height: 52, borderRadius: 8,
+                              background: isEditing ? 'var(--primary-dark)' : 'var(--primary)', color: '#fff',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center',
+                              justifyContent: 'center', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0,
+                            }}>
+                              {lote.quantidade}
+                              <span style={{ fontSize: '0.6rem', fontWeight: 400 }}>pratos</span>
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                              {/* Normal items */}
+                              {itensNormais.map((item) => {
+                                const cor = GRUPO_COLOR[item.grupoNome] || {};
+
+                                // Edit mode: show select for this item
+                                if (isEditing) {
+                                  let opcoes = [];
+                                  if (item.grupoNome === 'Proteína') {
+                                    const alimentoId = item.preparo?.alimento?.id;
+                                    opcoes = preparosPorGrupo['Proteína'][alimentoId] || [];
+                                  } else {
+                                    opcoes = preparosPorGrupo[item.grupoNome] || [];
+                                  }
+
+                                  return (
+                                    <div key={item.id} style={{
+                                      display: 'flex', alignItems: 'center', gap: 8,
+                                      paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
+                                    }}>
+                                      <span style={{
+                                        fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                        minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85,
+                                      }}>
+                                        {item.grupoNome}
+                                      </span>
+                                      {opcoes.length > 1 ? (
+                                        <select
+                                          value={editData[item.id] || item.preparoId}
+                                          onChange={(e) => setEditData((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                                          style={{
+                                            flex: 1, padding: '3px 6px', borderRadius: 6, fontSize: '0.85rem',
+                                            border: `1px solid ${editData[item.id] && editData[item.id] !== item.preparoId ? 'var(--primary)' : 'var(--gray-300)'}`,
+                                            background: editData[item.id] && editData[item.id] !== item.preparoId ? 'var(--primary-bg)' : '#fff',
+                                          }}
+                                        >
+                                          {opcoes.map((o) => (
+                                            <option key={o.id} value={o.id}>{o.nome}</option>
+                                          ))}
+                                        </select>
+                                      ) : (
+                                        <span style={{ fontWeight: 500, flex: 1, fontSize: '0.9rem', color: 'var(--gray-500)' }}>
+                                          {item.preparo?.nome}
+                                          <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>(única opção)</span>
+                                        </span>
+                                      )}
+                                      {item.gramagem > 0 && (
+                                        <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontWeight: 600, flexShrink: 0 }}>
+                                          {item.gramagem}g
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                // Normal display
+                                return (
+                                  <div key={item.id} style={{
+                                    display: 'flex', alignItems: 'baseline', gap: 8,
+                                    paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
                                   }}>
-                                    {item.grupoNome}
-                                  </span>
-                                  <span style={{ fontWeight: 500, flex: 1 }}>{item.preparo?.nome}</span>
-                                  {item.gramagem > 0 && (
-                                    <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontWeight: 600 }}>
-                                      {item.gramagem}g
+                                    <span style={{
+                                      fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                      minWidth: 84, color: cor.text || 'var(--primary-dark)', opacity: 0.85,
+                                    }}>
+                                      {item.grupoNome}
                                     </span>
+                                    <span style={{ fontWeight: 500, flex: 1 }}>{item.preparo?.nome}</span>
+                                    {item.gramagem > 0 && (
+                                      <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)', fontWeight: 600 }}>
+                                        {item.gramagem}g
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              {/* Molhos do lote */}
+                              {molhosDoLote.map((item) => {
+                                const cor = GRUPO_COLOR['Molho'];
+                                return (
+                                  <div key={item.id} style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    paddingBottom: 4, marginBottom: 4, borderBottom: '1px solid var(--gray-100)',
+                                  }}>
+                                    <span style={{
+                                      fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                      minWidth: 84, color: cor.text, opacity: 0.85,
+                                    }}>
+                                      Molho
+                                    </span>
+                                    <span style={{
+                                      fontWeight: 500, flex: 1,
+                                      padding: '2px 10px', borderRadius: 12, fontSize: '0.85rem',
+                                      background: cor.bg, border: `1px solid ${cor.border}`, color: cor.text,
+                                      display: 'inline-block',
+                                    }}>
+                                      {item.preparo?.nome}
+                                    </span>
+                                    {canEditCardapio && (
+                                      <button
+                                        onClick={() => handleRemoverMolho(lote.id, item.id)}
+                                        title="Remover molho"
+                                        style={{
+                                          background: 'none', border: 'none', cursor: 'pointer',
+                                          color: 'var(--gray-400)', fontSize: '0.85rem', padding: '0 4px',
+                                          lineHeight: 1,
+                                        }}
+                                      >✕</button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Action buttons per lote */}
+                            {canEditCardapio && !isEditing && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                                <button
+                                  onClick={() => startEdit(lote)}
+                                  style={{
+                                    padding: '4px 10px', borderRadius: 6, fontSize: '0.78rem',
+                                    border: '1px solid var(--gray-300)', background: '#fff',
+                                    cursor: 'pointer', color: 'var(--gray-600)', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  ✏️ Editar
+                                </button>
+                                <button
+                                  onClick={() => openMolhoModal(lote.id)}
+                                  style={{
+                                    padding: '4px 10px', borderRadius: 6, fontSize: '0.78rem',
+                                    border: `1px solid ${GRUPO_COLOR.Molho.border}`,
+                                    background: isMolhoOpen ? GRUPO_COLOR.Molho.bg : '#fff',
+                                    cursor: 'pointer', color: GRUPO_COLOR.Molho.text, whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  🫙 Molho
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Edit mode buttons */}
+                            {isEditing && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                                <button
+                                  onClick={() => saveEdit(lote)}
+                                  disabled={savingEdit}
+                                  style={{
+                                    padding: '4px 10px', borderRadius: 6, fontSize: '0.78rem',
+                                    border: 'none', background: 'var(--primary)',
+                                    cursor: 'pointer', color: '#fff', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {savingEdit ? '...' : '✓ Salvar'}
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  style={{
+                                    padding: '4px 10px', borderRadius: 6, fontSize: '0.78rem',
+                                    border: '1px solid var(--gray-300)', background: '#fff',
+                                    cursor: 'pointer', color: 'var(--gray-600)', whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Molho panel */}
+                          {isMolhoOpen && canEditCardapio && (
+                            <div style={{
+                              borderTop: `1px solid ${GRUPO_COLOR.Molho.border}`,
+                              background: GRUPO_COLOR.Molho.bg,
+                              padding: '10px 14px',
+                            }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: GRUPO_COLOR.Molho.text, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                🫙 Adicionar Molho à Proteína
+                              </div>
+                              {loadingMolhos ? (
+                                <span style={{ fontSize: '0.85rem', color: 'var(--gray-400)' }}>Carregando...</span>
+                              ) : molhos.length === 0 ? (
+                                <span style={{ fontSize: '0.85rem', color: 'var(--gray-400)' }}>
+                                  Nenhum molho cadastrado. Adicione molhos na{' '}
+                                  <Link to="/base-alimentar" style={{ color: GRUPO_COLOR.Molho.text }}>Base Alimentar</Link>{' '}
+                                  no grupo "Molho".
+                                </span>
+                              ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                  {molhos.flatMap((alimento) =>
+                                    alimento.preparos.map((preparo) => {
+                                      const jaAdicionado = molhosDoLote.some((m) => m.preparoId === preparo.id);
+                                      return (
+                                        <button
+                                          key={preparo.id}
+                                          onClick={() => !jaAdicionado && !addingMolho && handleAdicionarMolho(lote.id, preparo.id)}
+                                          disabled={jaAdicionado || addingMolho}
+                                          style={{
+                                            padding: '5px 14px', borderRadius: 16, fontSize: '0.85rem',
+                                            border: `1.5px solid ${jaAdicionado ? 'var(--gray-300)' : GRUPO_COLOR.Molho.border}`,
+                                            background: jaAdicionado ? 'var(--gray-100)' : '#fff',
+                                            color: jaAdicionado ? 'var(--gray-400)' : GRUPO_COLOR.Molho.text,
+                                            cursor: jaAdicionado ? 'default' : 'pointer',
+                                            fontWeight: jaAdicionado ? 400 : 500,
+                                          }}
+                                        >
+                                          {jaAdicionado ? '✓ ' : '+ '}{preparo.nome}
+                                        </button>
+                                      );
+                                    })
                                   )}
                                 </div>
-                              );
-                            })}
-                          </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -416,7 +738,6 @@ export default function PedidoDetalhePage() {
         {/* ── Ordem de Produção ── */}
         {ordem && dadosOrdem && (
           <>
-            {/* Consolidado de Cozinha */}
             <div className="card" style={{ marginBottom: 20 }}>
               <div className="card-title">
                 Consolidado de Cozinha
@@ -467,7 +788,6 @@ export default function PedidoDetalhePage() {
               </div>
             </div>
 
-            {/* Mapa de Montagem */}
             {mapaMontagem.length > 0 && (
               <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-title">Mapa de Montagem</div>

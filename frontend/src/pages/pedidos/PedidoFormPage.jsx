@@ -193,8 +193,8 @@ export default function PedidoFormPage() {
 
   const pageTitle = isEdit ? 'Editar Pedido' : isRepeat ? 'Repetir Pedido' : 'Novo Pedido';
 
-  const renderGrupoOpcional = ({ titulo, grupoNome, estado, setEstado }) => {
-    const alimentosGrupo = porGrupo(grupoNome);
+  const renderGrupoOpcional = ({ titulo, grupoNome, grupoDbNome, estado, setEstado }) => {
+    const alimentosGrupo = porGrupo(grupoDbNome || grupoNome);
     const totalPreparos  = alimentosGrupo.reduce((s, a) => s + (a.preparos?.length || 0), 0);
     const isCarb         = grupoNome === 'Carboidrato';
 
@@ -494,44 +494,35 @@ export default function PedidoFormPage() {
           {/* ── Grupos opcionais ── */}
           {renderGrupoOpcional({ titulo: 'Carboidrato', grupoNome: 'Carboidrato', estado: carboidrato, setEstado: setCarboidrato })}
           {renderGrupoOpcional({ titulo: 'Leguminosa',  grupoNome: 'Leguminosa',  estado: leguminosa,  setEstado: setLeguminosa })}
-          {renderGrupoOpcional({ titulo: 'Legumes',     grupoNome: 'Legumes',     estado: legume,      setEstado: setLegume })}
+          {renderGrupoOpcional({ titulo: 'Legumes', grupoNome: 'Legumes', grupoDbNome: 'Legume', estado: legume, setEstado: setLegume })}
 
-          {/* OBS de Legumes — aparece quando "Legumes variados" está selecionado */}
-          {legume.ativo && (() => {
-            const grpLegumes = grupos.find((g) => g.nome === 'Legumes');
-            const legVarAlim = grpLegumes
-              ? alimentos.find((a) => a.grupoId === grpLegumes.id && a.nome === 'Legumes variados')
-              : null;
-            const legVarPreparoId = legVarAlim?.preparos?.[0]?.id;
-            const temLegVariado = legVarPreparoId && legume.preparos.has(legVarPreparoId);
-            if (!temLegVariado) return null;
-            return (
-              <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-                  <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
-                    OBS — Legumes proibidos neste pedido
-                  </span>
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ color: '#92400e' }}>
-                    Informe quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
-                  </label>
-                  <textarea
-                    className="form-control"
-                    value={obsLegumes}
-                    onChange={(e) => setObsLegumes(e.target.value)}
-                    placeholder="Ex: sem chuchu, sem pimentão, sem berinjela..."
-                    rows={2}
-                    style={{ borderColor: '#f59e0b', background: '#fff' }}
-                  />
-                  <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
-                    Esta informação ficará destacada na ordem de produção.
-                  </small>
-                </div>
+          {/* OBS de Legumes — aparece sempre que o grupo Legumes está ativo */}
+          {legume.ativo && (
+            <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
+                  OBS — Mix / Legumes proibidos neste pedido
+                </span>
               </div>
-            );
-          })()}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ color: '#92400e' }}>
+                  Informe o mix de legumes e/ou quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
+                </label>
+                <textarea
+                  className="form-control"
+                  value={obsLegumes}
+                  onChange={(e) => setObsLegumes(e.target.value)}
+                  placeholder="Ex: Mix de legumes (brócolis, cenoura, vagem). Sem chuchu, sem pimentão..."
+                  rows={3}
+                  style={{ borderColor: '#f59e0b', background: '#fff' }}
+                />
+                <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
+                  Esta informação ficará destacada na ordem de produção para orientar a cozinha.
+                </small>
+              </div>
+            </div>
+          )}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>

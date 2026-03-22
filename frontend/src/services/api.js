@@ -78,4 +78,11 @@ export const ordensApi = {
   atualizarStatus: (id, data) => api.put(`/ordens-producao/${id}/status`, data),
 };
 
+export const lotesApi = {
+  molhos:        ()                     => api.get('/lotes/molhos'),
+  atualizarItem: (loteId, itemId, data) => api.put(`/lotes/${loteId}/itens/${itemId}`, data),
+  adicionarMolho:(loteId, data)         => api.post(`/lotes/${loteId}/molho`, data),
+  removerItem:   (loteId, itemId)       => api.delete(`/lotes/${loteId}/itens/${itemId}`),
+};
+
 export default api;

@@ -8,5 +8,6 @@ router.use('/clientes', require('./clientes.routes'));
 router.use('/pedidos', require('./pedidos.routes'));
 router.use('/aprovacoes', require('./aprovacoes.routes'));
 router.use('/ordens-producao', require('./ordens.routes'));
+router.use('/lotes',           require('./lotes.routes'));
 
 module.exports = router;
