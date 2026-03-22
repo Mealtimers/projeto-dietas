@@ -189,6 +189,25 @@ export default function PedidoDetalhePage() {
         })
       : '-';
 
+  // Build preparos lookup for edit mode — must be before early returns (Rules of Hooks)
+  const preparosPorGrupo = useMemo(() => {
+    if (!pedido) return {};
+    const map = { Carboidrato: [], Leguminosa: [], Legumes: [], 'Proteína': {} };
+    ['Carboidrato', 'Leguminosa', 'Legumes'].forEach((g) => {
+      map[g] = pedido.itensPermitidos
+        .filter((i) => i.grupoNome === g)
+        .map((i) => i.preparo)
+        .filter(Boolean);
+    });
+    pedido.proteinas.forEach((p) => {
+      const todos = p.alimentoBase?.preparos ?? [];
+      const permitidos =
+        p.preparosIds?.length > 0 ? todos.filter((prep) => p.preparosIds.includes(prep.id)) : todos;
+      map['Proteína'][p.alimentoBaseId] = permitidos;
+    });
+    return map;
+  }, [pedido]);
+
   if (loading) return <div className="loading">Carregando...</div>;
   if (error && !pedido) return <div className="page-content"><div className="alert alert-error">{error}</div></div>;
   if (!pedido) return null;
@@ -209,25 +228,6 @@ export default function PedidoDetalhePage() {
   const totalPratosVersao = versaoExibida
     ? versaoExibida.lotes.reduce((s, l) => s + l.quantidade, 0)
     : 0;
-
-  // Build preparos lookup for edit mode
-  const preparosPorGrupo = useMemo(() => {
-    if (!pedido) return {};
-    const map = { Carboidrato: [], Leguminosa: [], Legumes: [], 'Proteína': {} };
-    ['Carboidrato', 'Leguminosa', 'Legumes'].forEach((g) => {
-      map[g] = pedido.itensPermitidos
-        .filter((i) => i.grupoNome === g)
-        .map((i) => i.preparo)
-        .filter(Boolean);
-    });
-    pedido.proteinas.forEach((p) => {
-      const todos = p.alimentoBase?.preparos ?? [];
-      const permitidos =
-        p.preparosIds?.length > 0 ? todos.filter((prep) => p.preparosIds.includes(prep.id)) : todos;
-      map['Proteína'][p.alimentoBaseId] = permitidos;
-    });
-    return map;
-  }, [pedido]);
 
   const ordem           = pedido.ordemProducao;
   const dadosOrdem      = ordem?.itensConsolidados ?? null;
