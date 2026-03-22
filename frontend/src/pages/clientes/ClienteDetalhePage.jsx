@@ -76,7 +76,9 @@ export default function ClienteDetalhePage() {
 
   const pedidos      = cliente.pedidos || [];
   const ultimoPedido = pedidos[0];
-  const ativos       = pedidos.filter((p) => !['CONCLUIDO', 'REPROVADO'].includes(p.status)).length;
+  const ativos       = pedidos.filter((p) => !['CONCLUIDO', 'REPROVADO', 'CANCELADO'].includes(p.status)).length;
+  const ltv          = pedidos.reduce((s, p) => s + (p.valorTotal || 0), 0);
+  const fmtBRL       = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
   const initials     = cliente.nome.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -115,6 +117,10 @@ export default function ClienteDetalhePage() {
               <div className="profile-stat" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: 20 }}>
                 <div className="profile-stat-value">{ultimoPedido ? formatDate(ultimoPedido.createdAt) : '—'}</div>
                 <div className="profile-stat-label">último pedido</div>
+              </div>
+              <div className="profile-stat" style={{ borderLeft: '1px solid rgba(255,255,255,0.2)', paddingLeft: 20 }}>
+                <div className="profile-stat-value">{ltv > 0 ? fmtBRL(ltv) : '—'}</div>
+                <div className="profile-stat-label">LTV total</div>
               </div>
             </div>
             {cliente.observacoes && (
@@ -167,7 +173,7 @@ export default function ClienteDetalhePage() {
                   <tr>
                     <th>Data</th>
                     <th>Pratos</th>
-                    <th>Config</th>
+                    <th>Valor</th>
                     <th>Status</th>
                     <th>Aprovação</th>
                     <th>Ordem</th>
@@ -188,8 +194,8 @@ export default function ClienteDetalhePage() {
                           <span style={{ fontWeight: 700, color: 'var(--primary-dark)', fontSize: '1rem' }}>{p.totalPratos}</span>
                           <span style={{ fontSize: '0.78rem', color: 'var(--gray-400)', marginLeft: 3 }}>pratos</span>
                         </td>
-                        <td style={{ fontSize: '0.82rem', color: 'var(--gray-500)' }}>
-                          máx {p.maxRepeticoes}×
+                        <td style={{ fontWeight: 600, color: p.valorTotal ? '#166534' : 'var(--gray-300)', fontSize: '0.9rem' }}>
+                          {p.valorTotal ? fmtBRL(p.valorTotal) : '—'}
                         </td>
                         <td><StatusBadge status={p.status} /></td>
                         <td>

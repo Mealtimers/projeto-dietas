@@ -355,4 +355,26 @@ const deletarVarios = async (req, res, next) => {
   }
 };
 
-module.exports = { listar, buscarPorId, criar, atualizar, deletar, deletarVarios, gerarCardapio, atualizarStatus };
+const atualizarValor = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { valorTotal } = req.body;
+
+    const pedido = await prisma.pedidoDieta.findUnique({ where: { id } });
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
+
+    const valor = valorTotal != null ? parseFloat(valorTotal) : null;
+    if (valor !== null && (isNaN(valor) || valor < 0))
+      return res.status(400).json({ error: 'Valor inválido.' });
+
+    const atualizado = await prisma.pedidoDieta.update({
+      where: { id },
+      data: { valorTotal: valor },
+    });
+    res.json(atualizado);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listar, buscarPorId, criar, atualizar, deletar, deletarVarios, gerarCardapio, atualizarStatus, atualizarValor };

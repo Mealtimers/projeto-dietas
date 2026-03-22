@@ -10,5 +10,6 @@ router.put('/:id', pedidosController.atualizar);
 router.delete('/:id', pedidosController.deletar);
 router.post('/:id/gerar', pedidosController.gerarCardapio);
 router.put('/:id/status', pedidosController.atualizarStatus);
+router.patch('/:id/valor', pedidosController.atualizarValor);
 
 module.exports = router;

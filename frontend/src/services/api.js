@@ -63,6 +63,7 @@ export const pedidosApi = {
   deletarVarios: (ids) => api.delete('/pedidos', { data: { ids } }),
   gerarCardapio: (id) => api.post(`/pedidos/${id}/gerar`),
   atualizarStatus: (id, data) => api.put(`/pedidos/${id}/status`, data),
+  atualizarValor:  (id, data) => api.patch(`/pedidos/${id}/valor`, data),
 };
 
 export const aprovacoesApi = {

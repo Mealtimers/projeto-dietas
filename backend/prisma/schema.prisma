@@ -89,6 +89,7 @@ model PedidoDieta {
   obsLegumes        String?               // OBS sobre legumes proibidos (exibida em destaque na produção)
   nutricionista     String?               // Nome do nutricionista responsável (opcional)
   status            StatusPedido          @default(PENDENTE)
+  valorTotal        Float?                // Valor cobrado pelo pedido (R$)
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
   proteinas         PedidoProteina[]

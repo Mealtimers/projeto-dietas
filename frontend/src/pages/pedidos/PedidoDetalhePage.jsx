@@ -25,6 +25,10 @@ export default function PedidoDetalhePage() {
   const [gerandoOrdem, setGerandoOrdem] = useState(false);
   const [versaoSelecionada, setVersaoSelecionada] = useState(null);
 
+  // Financeiro
+  const [valorInput, setValorInput]   = useState('');
+  const [salvandoValor, setSalvandoValor] = useState(false);
+
   // Edit per lote
   const [editandoLoteId, setEditandoLoteId] = useState(null);
   const [editData, setEditData] = useState({});
@@ -39,6 +43,7 @@ export default function PedidoDetalhePage() {
   const loadPedido = useCallback(async () => {
     const res = await pedidosApi.buscar(id);
     setPedido(res.data);
+    setValorInput(res.data.valorTotal != null ? String(res.data.valorTotal) : '');
     setVersaoSelecionada(null);
   }, [id]);
 
@@ -80,6 +85,21 @@ export default function PedidoDetalhePage() {
       setError(err.response?.data?.error || 'Erro ao enviar para aprovação.');
     } finally {
       setEnviandoAprovacao(false);
+    }
+  };
+
+  const handleSalvarValor = async () => {
+    setSalvandoValor(true);
+    setError(null);
+    try {
+      const v = valorInput.trim().replace(',', '.');
+      await pedidosApi.atualizarValor(id, { valorTotal: v === '' ? null : parseFloat(v) });
+      showSuccess('Valor do pedido salvo!');
+      await loadPedido();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao salvar valor.');
+    } finally {
+      setSalvandoValor(false);
     }
   };
 
@@ -448,6 +468,46 @@ export default function PedidoDetalhePage() {
             )}
           </div>
         )}
+
+        {/* ── Financeiro ── */}
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-title">Financeiro</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--gray-600)', fontWeight: 500 }}>Valor do pedido (R$)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: '0.95rem', color: 'var(--gray-500)' }}>R$</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={valorInput}
+                  onChange={(e) => setValorInput(e.target.value)}
+                  placeholder="0,00"
+                  style={{
+                    width: 110, padding: '6px 10px', borderRadius: 8, fontSize: '1rem',
+                    border: '1px solid var(--gray-300)', textAlign: 'right', fontWeight: 600,
+                  }}
+                />
+              </div>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={handleSalvarValor}
+                disabled={salvandoValor}
+              >
+                {salvandoValor ? '...' : 'Salvar'}
+              </button>
+            </div>
+            {pedido.valorTotal != null && (
+              <div style={{
+                padding: '6px 16px', borderRadius: 20,
+                background: '#f0fdf4', border: '1px solid #bbf7d0',
+                fontSize: '1rem', fontWeight: 700, color: '#166534',
+              }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(pedido.valorTotal)}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ── Histórico de Versões + Cardápio ── */}
         {versoes.length > 0 && (
