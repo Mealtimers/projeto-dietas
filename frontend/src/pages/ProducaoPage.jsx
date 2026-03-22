@@ -622,7 +622,6 @@ export default function ProducaoPage() {
                         background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))',
                         color: '#fff',
                       }}>
-                        <span style={{ fontSize: '1.2rem' }}>🍱</span>
                         <span style={{ fontWeight: 700 }}>Lote {li + 1}</span>
                         <span style={{
                           background: 'rgba(255,255,255,0.2)', borderRadius: 20,
@@ -635,16 +634,15 @@ export default function ProducaoPage() {
                         <table>
                           <thead>
                             <tr>
-                              <th>Grupo</th>
-                              <th>Alimento</th>
+                              <th style={{ width: 110 }}>Grupo</th>
                               <th>Preparo</th>
-                              <th style={{ textAlign: 'right' }}>Gramagem</th>
+                              <th style={{ textAlign: 'right', width: 90 }}>Gramagem</th>
                             </tr>
                           </thead>
                           <tbody>
                             {lote.itens.map((item, ii) => {
-                              const cor  = GRUPO_COLORS[item.grupoNome] || 'var(--primary)';
-                              const icon = GRUPO_ICONS[item.grupoNome]  || '🥘';
+                              const cor = GRUPO_COLORS[item.grupoNome] || 'var(--primary)';
+                              const nomeExibido = item.nomeManual || item.preparo;
                               return (
                                 <tr key={ii}>
                                   <td>
@@ -652,12 +650,20 @@ export default function ProducaoPage() {
                                       fontSize: '0.75rem', fontWeight: 700,
                                       color: cor, textTransform: 'uppercase',
                                     }}>
-                                      {icon} {item.grupoNome}
+                                      {item.grupoNome}
                                     </span>
                                   </td>
-                                  <td style={{ fontWeight: 500 }}>{item.alimento}</td>
-                                  <td style={{ color: 'var(--gray-600)' }}>{item.preparo}</td>
-                                  <td style={{ textAlign: 'right', fontWeight: 700, color: cor }}>{item.gramagem} g</td>
+                                  <td style={{ fontWeight: 500 }}>
+                                    {nomeExibido}
+                                    {item.obs && (
+                                      <div style={{ fontSize: '0.75rem', color: '#92400e', fontStyle: 'italic', marginTop: 2 }}>
+                                        {item.obs}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: cor }}>
+                                    {item.gramagem > 0 ? `${item.gramagem} g` : '—'}
+                                  </td>
                                 </tr>
                               );
                             })}
