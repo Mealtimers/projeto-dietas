@@ -279,7 +279,7 @@ export default function BaseAlimentarPage() {
             <div key={grupo.id} className="card" style={{ marginBottom: 24 }}>
               <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <span>{grupo.nome}</span>
-                <span style={{ fontSize: '0.75rem', background: 'var(--primary-light)', color: 'var(--primary-dark)', borderRadius: 12, padding: '2px 10px', fontWeight: 400 }}>
+                <span style={{ fontSize: '0.75rem', background: 'var(--primary-light)', color: '#fff', borderRadius: 12, padding: '2px 10px', fontWeight: 600 }}>
                   {alimentosDoGrupo.length} alimento(s)
                 </span>
                 {grupoIsCarb && (
