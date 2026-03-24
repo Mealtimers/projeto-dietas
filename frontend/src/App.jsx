@@ -12,6 +12,9 @@ import PedidoFormPage from './pages/pedidos/PedidoFormPage';
 import PedidoDetalhePage from './pages/pedidos/PedidoDetalhePage';
 import AprovacoesPage from './pages/AprovacoesPage';
 import ProducaoPage from './pages/ProducaoPage';
+import PortalPage from './pages/portal/PortalPage';
+import SolicitacoesPage from './pages/solicitacoes/SolicitacoesPage';
+import SolicitacaoDetalhePage from './pages/solicitacoes/SolicitacaoDetalhePage';
 
 // Guarda de rota — redireciona para /login se não autenticado
 function PrivateRoute({ children }) {
@@ -22,8 +25,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rota pública */}
+        {/* Rotas públicas */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/portal" element={<PortalPage />} />
 
         {/* Rotas protegidas */}
         <Route
@@ -46,6 +50,8 @@ export default function App() {
           <Route path="pedidos/:id" element={<PedidoDetalhePage />} />
           <Route path="aprovacoes" element={<AprovacoesPage />} />
           <Route path="producao" element={<ProducaoPage />} />
+          <Route path="solicitacoes" element={<SolicitacoesPage />} />
+          <Route path="solicitacoes/:id" element={<SolicitacaoDetalhePage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Route>
       </Routes>

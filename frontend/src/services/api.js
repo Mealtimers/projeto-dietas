@@ -79,6 +79,20 @@ export const ordensApi = {
   atualizarStatus: (id, data) => api.put(`/ordens-producao/${id}/status`, data),
 };
 
+export const solicitacoesApi = {
+  listar:          (status) => api.get('/solicitacoes', { params: status ? { status } : {} }),
+  buscar:          (id)     => api.get(`/solicitacoes/${id}`),
+  contagem:        ()       => api.get('/solicitacoes/contagem'),
+  atualizarStatus: (id, data) => api.put(`/solicitacoes/${id}/status`, data),
+};
+
+// API pública do portal (sem auth)
+const portalApi = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' });
+export const portalPublicApi = {
+  opcoes:    ()     => portalApi.get('/portal/opcoes'),
+  solicitar: (data) => portalApi.post('/portal/solicitar', data),
+};
+
 export const lotesApi = {
   molhos:        ()                     => api.get('/lotes/molhos'),
   atualizarItem: (loteId, itemId, data) => api.put(`/lotes/${loteId}/itens/${itemId}`, data),

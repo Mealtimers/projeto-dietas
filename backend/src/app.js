@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express     = require('express');
 const cors        = require('cors');
-const routes      = require('./routes/index');
-const authRoutes  = require('./routes/auth.routes');
-const auth        = require('./middlewares/auth');
+const routes       = require('./routes/index');
+const authRoutes   = require('./routes/auth.routes');
+const portalRoutes = require('./routes/portal.routes');
+const auth         = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -11,8 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Rota pública — login
-app.use('/api/auth', authRoutes);
+// Rotas públicas
+app.use('/api/auth',   authRoutes);
+app.use('/api/portal', portalRoutes);
 
 // Rotas protegidas — exige token JWT
 app.use('/api', auth, routes);

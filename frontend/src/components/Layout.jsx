@@ -1,20 +1,23 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { clearSession, getUser } from '../auth';
-
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: '📊', exact: true },
-  { section: 'Cadastros' },
-  { to: '/clientes', label: 'Clientes', icon: '👥' },
-  { to: '/base-alimentar', label: 'Base Alimentar', icon: '🏭' },
-  { section: 'Operações' },
-  { to: '/pedidos', label: 'Pedidos', icon: '📋' },
-  { to: '/aprovacoes', label: 'Aprovações', icon: '✅' },
-  { to: '/producao', label: 'Produção', icon: '⚙️' },
-];
+import { solicitacoesApi } from '../services/api';
 
 export default function Layout() {
   const navigate = useNavigate();
   const usuario = getUser();
+  const [solicitacoesPendentes, setSolicitacoesPendentes] = useState(0);
+
+  useEffect(() => {
+    const fetchContagem = () => {
+      solicitacoesApi.contagem()
+        .then(res => setSolicitacoesPendentes(res.data.count || 0))
+        .catch(() => {});
+    };
+    fetchContagem();
+    const interval = setInterval(fetchContagem, 30000); // atualiza a cada 30s
+    return () => clearInterval(interval);
+  }, []);
 
   function handleLogout() {
     clearSession();
@@ -33,20 +36,43 @@ export default function Layout() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item, idx) => {
-            if (item.section) return <div key={idx} className="nav-section">{item.section}</div>;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.exact}
-                className={({ isActive }) => isActive ? 'active' : ''}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {item.label}
-              </NavLink>
-            );
-          })}
+          <NavLink to="/" end className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">📊</span>Dashboard
+          </NavLink>
+
+          <div className="nav-section">Cadastros</div>
+          <NavLink to="/clientes" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">👥</span>Clientes
+          </NavLink>
+          <NavLink to="/base-alimentar" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">🏭</span>Base Alimentar
+          </NavLink>
+
+          <div className="nav-section">Operações</div>
+          <NavLink to="/pedidos" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">📋</span>Pedidos
+          </NavLink>
+          <NavLink to="/aprovacoes" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">✅</span>Aprovações
+          </NavLink>
+          <NavLink to="/producao" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">⚙️</span>Produção
+          </NavLink>
+
+          <div className="nav-section">Portal</div>
+          <NavLink to="/solicitacoes" className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="nav-icon">📥</span>
+            Solicitações
+            {solicitacoesPendentes > 0 && (
+              <span style={{
+                marginLeft: 'auto', background: '#ef4444', color: '#fff',
+                borderRadius: 10, fontSize: '0.68rem', fontWeight: 700,
+                padding: '1px 7px', minWidth: 18, textAlign: 'center',
+              }}>
+                {solicitacoesPendentes}
+              </span>
+            )}
+          </NavLink>
         </nav>
 
         <div className="sidebar-footer">

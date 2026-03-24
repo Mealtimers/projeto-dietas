@@ -17,6 +17,10 @@ const STATUS_LABELS = {
   // Dieta
   ATIVO: 'Ativo',
   INATIVO: 'Inativo',
+  // Solicitação portal
+  AGUARDANDO:        'Aguardando',
+  EM_ORCAMENTO:      'Em Orçamento',
+  ORCAMENTO_ENVIADO: 'Orçamento Enviado',
   // Tipo refeição
   CAFE_MANHA: 'Café da Manhã',
   LANCHE_MANHA: 'Lanche Manhã',

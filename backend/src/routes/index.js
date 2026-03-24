@@ -9,5 +9,6 @@ router.use('/pedidos', require('./pedidos.routes'));
 router.use('/aprovacoes', require('./aprovacoes.routes'));
 router.use('/ordens-producao', require('./ordens.routes'));
 router.use('/lotes',           require('./lotes.routes'));
+router.use('/solicitacoes',    require('./solicitacoes.routes'));
 
 module.exports = router;

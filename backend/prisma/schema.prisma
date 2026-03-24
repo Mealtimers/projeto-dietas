@@ -198,3 +198,30 @@ model OrdemProducao {
   updatedAt         DateTime    @updatedAt
   pedido            PedidoDieta @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
 }
+
+// ── Portal do Cliente ─────────────────────────────────────────────────────
+
+enum StatusSolicitacao {
+  AGUARDANDO
+  EM_ORCAMENTO
+  ORCAMENTO_ENVIADO
+  APROVADO
+  REPROVADO
+}
+
+model SolicitacaoOrcamento {
+  id           String             @id @default(cuid())
+  nome         String
+  email        String
+  telefone     String?
+  totalPratos  Int
+  proteinas    Json               // [{alimentoNome, gramagem, quantidade}]
+  carboidrato  Json?              // {gramagem, alimentoNomes[]}
+  leguminosa   Json?              // {gramagem, alimentoNomes[]}
+  legume       Json?              // {gramagem, alimentoNomes[], obs}
+  molhos       Json?              // [string]
+  observacoes  String?
+  status       StatusSolicitacao  @default(AGUARDANDO)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}

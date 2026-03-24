@@ -365,6 +365,9 @@ tr:last-child td { border-bottom: none; }
 .badge-em_andamento         { background: #ede9fe; color: #5b21b6; }
 .badge-cancelada            { background: #fee2e2; color: #991b1b; }
 .badge-concluida            { background: var(--gray-100); color: var(--gray-600); }
+.badge-aguardando           { background: #fef3c7; color: #92400e; }
+.badge-em_orcamento         { background: #dbeafe; color: #1e40af; }
+.badge-orcamento_enviado    { background: #ede9fe; color: #5b21b6; }
 
 /* ── Alerts ─────────────────────────────────────────────────────── */
 .alert { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 0.875rem; }
