@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { portalPublicApi } from '../../services/api';
 
 const GRUPOS_INTERESSE = ['Proteina', 'Proteína', 'Carboidrato', 'Leguminosa', 'Legume', 'Molho'];
+const MIN_PRATOS = 7;
+const MIN_QTD_POR_PROTEINA = 3;
 
 export default function PortalPage() {
   const [step, setStep]     = useState(1); // 1=dados, 2=preferências, 3=confirmação, 4=sucesso
@@ -16,26 +18,26 @@ export default function PortalPage() {
   const [telefone, setTelefone] = useState('');
 
   // Preferências
-  const [totalPratos, setTotalPratos] = useState(10);
+  const [totalPratos, setTotalPratos] = useState(MIN_PRATOS);
 
   // Proteínas — array de {alimentoNome, gramagem, quantidade}
-  const [proteinas, setProteinas] = useState([{ alimentoNome: '', gramagem: 150, quantidade: 10 }]);
+  const [proteinas, setProteinas] = useState([{ alimentoNome: '', gramagem: 150, quantidade: MIN_PRATOS }]);
 
   // Carboidrato
-  const [carbAtivo, setCarbAtivo]     = useState(false);
+  const [carbAtivo, setCarbAtivo]       = useState(false);
   const [carbGramagem, setCarbGramagem] = useState(140);
   const [carbSelecionados, setCarbSelecionados] = useState([]);
 
   // Leguminosa
-  const [legumAtivo, setLegumAtivo]     = useState(false);
+  const [legumAtivo, setLegumAtivo]       = useState(false);
   const [legumGramagem, setLegumGramagem] = useState(100);
   const [legumSelecionados, setLegumSelecionados] = useState([]);
 
   // Legume
-  const [legumeAtivo, setLegumeAtivo]     = useState(false);
+  const [legumeAtivo, setLegumeAtivo]       = useState(false);
   const [legumeGramagem, setLegumeGramagem] = useState(80);
   const [legumeSelecionados, setLegumeSelecionados] = useState([]);
-  const [legumeObs, setLegumeObs]         = useState('');
+  const [legumeObs, setLegumeObs]           = useState('');
 
   // Molhos
   const [molhosSelecionados, setMolhosSelecionados] = useState([]);
@@ -63,7 +65,7 @@ export default function PortalPage() {
 
   // ── Proteínas helpers ─────────────────────────────────────────────────────
   const addProteina = () =>
-    setProteinas(p => [...p, { alimentoNome: '', gramagem: 150, quantidade: 0 }]);
+    setProteinas(p => [...p, { alimentoNome: '', gramagem: 150, quantidade: MIN_QTD_POR_PROTEINA }]);
 
   const removeProteina = (idx) =>
     setProteinas(p => p.filter((_, i) => i !== idx));
@@ -86,8 +88,18 @@ export default function PortalPage() {
   };
 
   const validarStep2 = () => {
-    if (totalPratos < 1) { setError('Total de pratos deve ser ao menos 1.'); return false; }
-    if (proteinas.some(p => !p.alimentoNome)) { setError('Selecione a proteína em todas as linhas.'); return false; }
+    if (totalPratos < MIN_PRATOS) {
+      setError(`O pedido mínimo é de ${MIN_PRATOS} marmitas.`);
+      return false;
+    }
+    if (proteinas.some(p => !p.alimentoNome)) {
+      setError('Selecione a proteína em todas as linhas.');
+      return false;
+    }
+    if (proteinas.some(p => parseInt(p.quantidade) < MIN_QTD_POR_PROTEINA)) {
+      setError(`Cada proteína deve ter no mínimo ${MIN_QTD_POR_PROTEINA} pratos iguais.`);
+      return false;
+    }
     if (somaProteinas !== totalPratos) {
       setError(`A soma das quantidades de proteína (${somaProteinas}) deve ser igual ao total de pratos (${totalPratos}).`);
       return false;
@@ -124,6 +136,15 @@ export default function PortalPage() {
     }
   };
 
+  // ── Desconto por quantidade ───────────────────────────────────────────────
+  const getDescontoInfo = (total) => {
+    if (total >= 30) return { label: 'Melhor condição', color: '#166534', bg: '#f0fdf4', border: '#bbf7d0' };
+    if (total >= 20) return { label: 'Ótima condição', color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' };
+    if (total >= 14) return { label: 'Boa condição', color: '#854d0e', bg: '#fefce8', border: '#fde68a' };
+    return null;
+  };
+  const descontoInfo = getDescontoInfo(totalPratos);
+
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', color: '#7B1A1A' }}>Carregando...</div>
@@ -133,12 +154,17 @@ export default function PortalPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #7B1A1A 0%, #3D0B0B 100%)', padding: '20px 16px' }}>
       {/* Header */}
-      <div style={{ maxWidth: 660, margin: '0 auto 24px' }}>
+      <div style={{ maxWidth: 660, margin: '0 auto 16px' }}>
         <div style={{ textAlign: 'center', color: '#fff' }}>
           <div style={{ fontSize: '1.6rem', fontWeight: 900, letterSpacing: 2 }}>MEAL TIME</div>
           <div style={{ fontSize: '0.75rem', letterSpacing: 4, opacity: 0.7, marginBottom: 8 }}>ULTRACONGELADOS</div>
           <div style={{ fontSize: '1rem', opacity: 0.9 }}>Solicitação de Orçamento de Dieta</div>
         </div>
+      </div>
+
+      {/* Aviso geral — pesagem */}
+      <div style={{ maxWidth: 660, margin: '0 auto 16px', background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 16px', color: 'rgba(255,255,255,0.9)', fontSize: '0.8rem', lineHeight: 1.5, border: '1px solid rgba(255,255,255,0.2)' }}>
+        ⚖️ <b>Todos os alimentos são pesados prontos</b> e aferidos com balanças com selo do INMETRO. Ao descongelar, pode ocorrer pequena perda de peso por desidratação, mas <b>sem comprometer os nutrientes</b>.
       </div>
 
       {/* Steps indicator */}
@@ -191,11 +217,23 @@ export default function PortalPage() {
 
             {/* Total de pratos */}
             <div style={sectionStyle}>
-              <label style={{ ...labelStyle, marginBottom: 4 }}>Total de marmitas</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button style={btnCounterStyle} onClick={() => setTotalPratos(t => Math.max(1, t - 1))}>−</button>
+              <label style={{ ...labelStyle, marginBottom: 4 }}>Total de marmitas <span style={{ color: '#64748b', fontWeight: 400 }}>(mínimo {MIN_PRATOS})</span></label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: descontoInfo ? 10 : 0 }}>
+                <button style={btnCounterStyle} onClick={() => setTotalPratos(t => Math.max(MIN_PRATOS, t - 1))}>−</button>
                 <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#7B1A1A', minWidth: 40, textAlign: 'center' }}>{totalPratos}</span>
                 <button style={btnCounterStyle} onClick={() => setTotalPratos(t => t + 1)}>+</button>
+              </div>
+
+              {/* Badge de condição por quantidade */}
+              {descontoInfo && (
+                <div style={{ display: 'inline-block', background: descontoInfo.bg, border: `1px solid ${descontoInfo.border}`, borderRadius: 6, padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700, color: descontoInfo.color }}>
+                  🎉 {descontoInfo.label} — quanto mais marmitas, melhor o desconto e os prazos!
+                </div>
+              )}
+
+              {/* Dica de desconto */}
+              <div style={{ marginTop: 10, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                💡 <b>Tabela de condições:</b> 7–13 marmitas · 14–19 = boa condição · 20–29 = ótima condição · 30+ = melhor condição e desconto especial
               </div>
             </div>
 
@@ -207,6 +245,11 @@ export default function PortalPage() {
                   {somaProteinas}/{totalPratos} pratos
                 </span>
               </div>
+
+              <div style={{ background: '#fef9ec', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px', marginBottom: 10, fontSize: '0.78rem', color: '#92400e' }}>
+                Mínimo de <b>{MIN_QTD_POR_PROTEINA} pratos iguais</b> por proteína. Ex: 5× Frango + 5× Salmão = 10 marmitas.
+              </div>
+
               {proteinas.map((p, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                   <div style={{ flex: '1 1 160px' }}>
@@ -227,7 +270,7 @@ export default function PortalPage() {
                   </div>
                   <div style={{ flex: '0 0 100px' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: 3 }}>Qtd. pratos</div>
-                    <input style={{ ...inputStyle, margin: 0 }} type="number" min="1" max={totalPratos} value={p.quantidade} onChange={e => updateProteina(idx, 'quantidade', e.target.value)} />
+                    <input style={{ ...inputStyle, margin: 0 }} type="number" min={MIN_QTD_POR_PROTEINA} max={totalPratos} value={p.quantidade} onChange={e => updateProteina(idx, 'quantidade', e.target.value)} />
                   </div>
                   {proteinas.length > 1 && (
                     <button style={{ ...btnDangerSmall, alignSelf: 'flex-end', marginBottom: 2 }} onClick={() => removeProteina(idx)}>✕</button>
@@ -245,10 +288,13 @@ export default function PortalPage() {
               </div>
               {carbAtivo && (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Gramagem:</label>
                     <input style={{ ...inputStyle, margin: 0, width: 70 }} type="number" value={carbGramagem} onChange={e => setCarbGramagem(e.target.value)} />
                     <span style={{ fontSize: '0.8rem', color: '#64748b' }}>g</span>
+                  </div>
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: '6px 10px', marginBottom: 10, fontSize: '0.78rem', color: '#0369a1' }}>
+                    ℹ️ A gramagem informada considera o <b>arroz como padrão</b>. Os demais alimentos são calculados de acordo com a <b>Tabela TACO</b> para equivalência nutricional.
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {(grpCarb?.alimentos || []).map(a => (
@@ -293,10 +339,13 @@ export default function PortalPage() {
               </div>
               {legumeAtivo && (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Gramagem:</label>
                     <input style={{ ...inputStyle, margin: 0, width: 70 }} type="number" value={legumeGramagem} onChange={e => setLegumeGramagem(e.target.value)} />
                     <span style={{ fontSize: '0.8rem', color: '#64748b' }}>g</span>
+                  </div>
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '6px 10px', marginBottom: 10, fontSize: '0.78rem', color: '#166534' }}>
+                    🥦 Você pode escolher <b>1 legume específico</b> ou selecionar <b>MIX</b> — sortido com 2 a 3 legumes por prato. <b>Informe quais não gosta</b> para não serem incluídos, ou especifique sua lista preferida no campo de observações abaixo.
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                     {(grpLegume?.alimentos || []).map(a => (
@@ -378,7 +427,7 @@ export default function PortalPage() {
             </div>
 
             <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: '0.85rem', color: '#92400e' }}>
-              Após o envio, nossa equipe entrará em contato pelo e-mail <b>{email}</b> com o orçamento e os prazos de preparo.
+              Após o envio, nossa equipe entrará em contato pelo <b>WhatsApp</b> com o orçamento e os prazos de preparo.
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
@@ -397,7 +446,7 @@ export default function PortalPage() {
             <h2 style={{ color: '#166534', margin: '0 0 8px' }}>Solicitação enviada!</h2>
             <p style={{ color: '#64748b', marginBottom: 20 }}>
               Recebemos sua solicitação, <b>{nome}</b>!<br />
-              Nossa equipe entrará em contato pelo e-mail <b>{email}</b> com o orçamento personalizado e os prazos de preparo.
+              Nossa equipe entrará em contato pelo <b>WhatsApp</b> com o orçamento personalizado e os prazos de preparo.
             </p>
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 20px', display: 'inline-block', marginBottom: 24 }}>
               <div style={{ fontSize: '0.85rem', color: '#166534' }}>
@@ -405,7 +454,13 @@ export default function PortalPage() {
               </div>
             </div>
             <div>
-              <button style={btnSecondaryStyle} onClick={() => { setStep(1); setNome(''); setEmail(''); setTelefone(''); setObservacoes(''); setProteinas([{ alimentoNome: '', gramagem: 150, quantidade: 10 }]); setCarbAtivo(false); setLegumAtivo(false); setLegumeAtivo(false); setMolhosSelecionados([]); }}>
+              <button style={btnSecondaryStyle} onClick={() => {
+                setStep(1);
+                setNome(''); setEmail(''); setTelefone(''); setObservacoes('');
+                setProteinas([{ alimentoNome: '', gramagem: 150, quantidade: MIN_PRATOS }]);
+                setCarbAtivo(false); setLegumAtivo(false); setLegumeAtivo(false);
+                setMolhosSelecionados([]);
+              }}>
                 Nova solicitação
               </button>
             </div>
