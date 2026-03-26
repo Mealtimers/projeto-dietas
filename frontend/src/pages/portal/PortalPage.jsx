@@ -197,7 +197,7 @@ export default function PortalPage() {
             <p style={{ margin: '0 0 22px', color: '#475569', fontSize: '0.88rem', lineHeight: 1.75, borderLeft: '3px solid #7B1A1A', paddingLeft: 12, borderRadius: '0 6px 6px 0' }}>
               Tu tá dando o passo certo.<br />
               Quando a rotina é corrida, o que mais derruba a alimentação é o improviso.<br /><br />
-              Preenche rapidinho aqui embaixo pra gente entender teu objetivo e montar um plano prático e eficiente pra tua semana — com comida de verdade, pronta em 5 a 7 minutos.
+              Preenche rapidinho aqui embaixo pra gente entender teu objetivo e montar um plano prático e eficiente pra tua semana, com comida de verdade, pronta em 5 a 7 minutos.
             </p>
 
             <label style={labelStyle}>Nome completo *</label>
