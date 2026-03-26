@@ -72,9 +72,17 @@ export default function PedidoFormPage() {
     setNutricionista(pedido.nutricionista || '');
   };
 
-  const initFromSolicitacao = (sol, alimentosCarregados, gruposCarregados) => {
+  const initFromSolicitacao = (sol, alimentosCarregados, gruposCarregados, clientesCarregados) => {
     setSolicitacaoInfo({ nome: sol.nome, email: sol.email, telefone: sol.telefone });
     setObservacoes(sol.observacoes || '');
+
+    // Tenta casar o cliente pelo e-mail ou nome
+    const clienteMatch = clientesCarregados.find(
+      (c) =>
+        (sol.email && c.email?.toLowerCase() === sol.email.toLowerCase()) ||
+        c.nome?.toLowerCase() === sol.nome?.toLowerCase()
+    );
+    if (clienteMatch) setClienteId(clienteMatch.id);
 
     // Proteínas — tenta casar pelo nome
     const novasProteinas = (sol.proteinas || []).map((p) => {
@@ -137,7 +145,7 @@ export default function PedidoFormPage() {
             initFromPedido(pedido);
           }
         } else if (sRes) {
-          initFromSolicitacao(sRes.data, alimentosAtivos, gRes.data);
+          initFromSolicitacao(sRes.data, alimentosAtivos, gRes.data, cRes.data);
         } else if (clienteIdParam) {
           setClienteId(clienteIdParam);
         }
@@ -413,7 +421,11 @@ export default function PedidoFormPage() {
             {solicitacaoInfo.email && <> · {solicitacaoInfo.email}</>}
             {solicitacaoInfo.telefone && <> · {solicitacaoInfo.telefone}</>}
             <br />
-            <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Gramagens, proteínas e grupos foram pré-preenchidos. Selecione o cliente cadastrado e ajuste os preparos antes de salvar.</span>
+            {clienteId ? (
+              <span style={{ fontSize: '0.8rem', color: '#166534' }}>✅ Cliente encontrado e selecionado automaticamente. Ajuste os preparos antes de salvar.</span>
+            ) : (
+              <span style={{ fontSize: '0.8rem', color: '#991b1b' }}>⚠️ Cliente não encontrado pelo e-mail/nome. <b>Cadastre o cliente primeiro</b> ou selecione manualmente abaixo.</span>
+            )}
           </div>
         )}
 
