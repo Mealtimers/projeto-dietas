@@ -21,7 +21,7 @@ export default function PortalPage() {
   const [totalPratos, setTotalPratos] = useState(MIN_PRATOS);
 
   // Proteínas — array de {alimentoNome, gramagem, quantidade}
-  const [proteinas, setProteinas] = useState([{ alimentoNome: '', gramagem: 150, quantidade: MIN_PRATOS }]);
+  const [proteinas, setProteinas] = useState([{ alimentoNome: '', gramagem: '', quantidade: '' }]);
 
   // Carboidrato
   const [carbAtivo, setCarbAtivo]       = useState(false);
@@ -65,7 +65,7 @@ export default function PortalPage() {
 
   // ── Proteínas helpers ─────────────────────────────────────────────────────
   const addProteina = () =>
-    setProteinas(p => [...p, { alimentoNome: '', gramagem: 150, quantidade: MIN_QTD_POR_PROTEINA }]);
+    setProteinas(p => [...p, { alimentoNome: '', gramagem: '', quantidade: '' }]);
 
   const removeProteina = (idx) =>
     setProteinas(p => p.filter((_, i) => i !== idx));
@@ -97,8 +97,12 @@ export default function PortalPage() {
       setError('Selecione a proteína em todas as linhas.');
       return false;
     }
-    if (proteinas.some(p => parseInt(p.quantidade) < MIN_QTD_POR_PROTEINA)) {
+    if (proteinas.some(p => !p.quantidade || parseInt(p.quantidade) < MIN_QTD_POR_PROTEINA)) {
       setError(`Cada proteína deve ter no mínimo ${MIN_QTD_POR_PROTEINA} pratos iguais.`);
+      return false;
+    }
+    if (proteinas.some(p => !p.gramagem || parseInt(p.gramagem) <= 0)) {
+      setError('Informe a gramagem de cada proteína.');
       return false;
     }
     if (somaProteinas !== totalPratos) {
@@ -468,7 +472,7 @@ export default function PortalPage() {
               <button style={btnSecondaryStyle} onClick={() => {
                 setStep(1);
                 setNome(''); setEmail(''); setTelefone(''); setObservacoes('');
-                setProteinas([{ alimentoNome: '', gramagem: 150, quantidade: MIN_PRATOS }]);
+                setProteinas([{ alimentoNome: '', gramagem: '', quantidade: '' }]);
                 setCarbAtivo(false); setLegumAtivo(false); setLegumeAtivo(false);
                 setMolhosSelecionados([]);
               }}>
