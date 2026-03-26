@@ -294,8 +294,9 @@ export default function PortalPage() {
                     <input style={{ ...inputStyle, margin: 0, width: 70 }} type="number" value={carbGramagem} onChange={e => setCarbGramagem(e.target.value)} />
                     <span style={{ fontSize: '0.8rem', color: '#64748b' }}>g</span>
                   </div>
-                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: '6px 10px', marginBottom: 10, fontSize: '0.78rem', color: '#0369a1' }}>
-                    ℹ️ A gramagem informada considera o <b>arroz como padrão</b>. Os demais alimentos são calculados de acordo com a <b>Tabela TACO</b> para equivalência nutricional.
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: '0.78rem', color: '#0369a1', lineHeight: 1.6 }}>
+                    ℹ️ Escolha o(s) carboidrato(s) que prefere. O <b>modo de preparo será diversificado a cada 3 pratos</b> — ex: Batata Inglesa (assada, rústica, purê).<br />
+                    A gramagem considera o <b>arroz como padrão</b>; os demais são ajustados pela <b>Tabela TACO</b>.
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {(grpCarb?.alimentos || []).map(a => (
