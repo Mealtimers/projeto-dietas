@@ -191,8 +191,14 @@ export default function PortalPage() {
         {/* ── STEP 1 — Dados pessoais ─────────────────────────────────────── */}
         {step === 1 && (
           <div style={{ padding: 28 }}>
-            <h2 style={{ margin: '0 0 4px', color: '#7B1A1A', fontSize: '1.2rem' }}>Seus dados</h2>
-            <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '0.875rem' }}>Vamos precisar de algumas informações para entrar em contato.</p>
+            <h2 style={{ margin: '0 0 12px', color: '#7B1A1A', fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.35 }}>
+              Pare de improvisar.<br />Planeje tua alimentação em 2 minutos.
+            </h2>
+            <p style={{ margin: '0 0 22px', color: '#475569', fontSize: '0.88rem', lineHeight: 1.75, borderLeft: '3px solid #7B1A1A', paddingLeft: 12, borderRadius: '0 6px 6px 0' }}>
+              Tu tá dando o passo certo.<br />
+              Quando a rotina é corrida, o que mais derruba a alimentação é o improviso.<br /><br />
+              Preenche rapidinho aqui embaixo pra gente entender teu objetivo e montar um plano prático e eficiente pra tua semana — com comida de verdade, pronta em 5 a 7 minutos.
+            </p>
 
             <label style={labelStyle}>Nome completo *</label>
             <input style={inputStyle} value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" />
