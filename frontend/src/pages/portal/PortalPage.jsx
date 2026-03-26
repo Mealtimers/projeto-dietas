@@ -214,7 +214,11 @@ export default function PortalPage() {
         {step === 2 && (
           <div style={{ padding: 28 }}>
             <h2 style={{ margin: '0 0 4px', color: '#7B1A1A', fontSize: '1.2rem' }}>Preferências alimentares</h2>
-            <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: '0.875rem' }}>Configure a distribuição das suas marmitas.</p>
+            <p style={{ margin: '0 0 12px', color: '#64748b', fontSize: '0.875rem' }}>Configure a distribuição das suas marmitas.</p>
+
+            <div style={{ background: '#fef9ec', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6 }}>
+              💡 <b>Sobre os modos de preparo:</b> aqui você informa apenas os <b>alimentos que prefere e as gramagens</b>. Os modos de preparo serão elaborados de forma diversificada pela nossa equipe <b>após a aprovação do orçamento</b>. Ex: Batata Inglesa → assada, rústica, purê (variando a cada 3 pratos).
+            </div>
 
             {/* Total de pratos */}
             <div style={sectionStyle}>
@@ -294,9 +298,8 @@ export default function PortalPage() {
                     <input style={{ ...inputStyle, margin: 0, width: 70 }} type="number" value={carbGramagem} onChange={e => setCarbGramagem(e.target.value)} />
                     <span style={{ fontSize: '0.8rem', color: '#64748b' }}>g</span>
                   </div>
-                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: '0.78rem', color: '#0369a1', lineHeight: 1.6 }}>
-                    ℹ️ Escolha o(s) carboidrato(s) que prefere. O <b>modo de preparo será diversificado a cada 3 pratos</b> — ex: Batata Inglesa (assada, rústica, purê).<br />
-                    A gramagem considera o <b>arroz como padrão</b>; os demais são ajustados pela <b>Tabela TACO</b>.
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6, padding: '6px 10px', marginBottom: 10, fontSize: '0.78rem', color: '#0369a1' }}>
+                    ℹ️ A gramagem considera o <b>arroz como padrão</b>; os demais são ajustados pela <b>Tabela TACO</b>.
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {(grpCarb?.alimentos || []).map(a => (
