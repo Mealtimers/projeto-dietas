@@ -81,8 +81,9 @@ export default function PortalPage() {
 
   // ── Validações ────────────────────────────────────────────────────────────
   const validarStep1 = () => {
-    if (!nome.trim())  { setError('Informe seu nome.'); return false; }
-    if (!email.trim() || !email.includes('@')) { setError('Informe um e-mail válido.'); return false; }
+    if (!nome.trim()) { setError('Informe seu nome.'); return false; }
+    if (!telefone.trim()) { setError('Informe seu WhatsApp.'); return false; }
+    if (email.trim() && !email.includes('@')) { setError('Informe um e-mail válido.'); return false; }
     setError(null);
     return true;
   };
@@ -196,11 +197,11 @@ export default function PortalPage() {
             <label style={labelStyle}>Nome completo *</label>
             <input style={inputStyle} value={nome} onChange={e => setNome(e.target.value)} placeholder="Seu nome" />
 
-            <label style={labelStyle}>E-mail *</label>
-            <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" />
-
-            <label style={labelStyle}>Telefone / WhatsApp</label>
+            <label style={labelStyle}>WhatsApp *</label>
             <input style={inputStyle} value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+
+            <label style={labelStyle}>E-mail</label>
+            <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" />
 
             <label style={labelStyle}>Observações gerais (alergias, restrições...)</label>
             <textarea style={{ ...inputStyle, height: 80, resize: 'vertical' }} value={observacoes} onChange={e => setObservacoes(e.target.value)} placeholder="Ex: alérgico a lactose, não como carne de porco..." />
