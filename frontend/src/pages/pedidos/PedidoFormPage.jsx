@@ -72,16 +72,31 @@ export default function PedidoFormPage() {
     setNutricionista(pedido.nutricionista || '');
   };
 
-  const initFromSolicitacao = (sol, alimentosCarregados, gruposCarregados, clientesCarregados) => {
+  const initFromSolicitacao = async (sol, alimentosCarregados, gruposCarregados, clientesCarregados) => {
     setSolicitacaoInfo({ nome: sol.nome, email: sol.email, telefone: sol.telefone });
     setObservacoes(sol.observacoes || '');
 
     // Tenta casar o cliente pelo e-mail ou nome
-    const clienteMatch = clientesCarregados.find(
+    let clienteMatch = clientesCarregados.find(
       (c) =>
         (sol.email && c.email?.toLowerCase() === sol.email.toLowerCase()) ||
         c.nome?.toLowerCase() === sol.nome?.toLowerCase()
     );
+
+    // Se não encontrou, cria o cliente automaticamente com os dados do portal
+    if (!clienteMatch) {
+      try {
+        const payload = { nome: sol.nome, telefone: sol.telefone || '' };
+        if (sol.email) payload.email = sol.email;
+        const novoRes = await clientesApi.criar(payload);
+        clienteMatch = novoRes.data;
+        setClientes((prev) => [...prev, clienteMatch]);
+        setSolicitacaoInfo((prev) => ({ ...prev, _clienteCriado: true }));
+      } catch (err) {
+        console.error('Erro ao criar cliente automaticamente:', err);
+      }
+    }
+
     if (clienteMatch) setClienteId(clienteMatch.id);
 
     // Proteínas — tenta casar pelo nome
@@ -126,7 +141,7 @@ export default function PedidoFormPage() {
     if (solicitacaoId)  promises.push(solicitacoesApi.buscar(solicitacaoId));
 
     Promise.all(promises)
-      .then((results) => {
+      .then(async (results) => {
         const [cRes, aRes, gRes, extra1, extra2] = results;
         const alimentosAtivos = aRes.data.filter((a) => a.ativo !== false);
         setClientes(cRes.data);
@@ -145,7 +160,7 @@ export default function PedidoFormPage() {
             initFromPedido(pedido);
           }
         } else if (sRes) {
-          initFromSolicitacao(sRes.data, alimentosAtivos, gRes.data, cRes.data);
+          await initFromSolicitacao(sRes.data, alimentosAtivos, gRes.data, cRes.data);
         } else if (clienteIdParam) {
           setClienteId(clienteIdParam);
         }
@@ -421,10 +436,14 @@ export default function PedidoFormPage() {
             {solicitacaoInfo.email && <> · {solicitacaoInfo.email}</>}
             {solicitacaoInfo.telefone && <> · {solicitacaoInfo.telefone}</>}
             <br />
-            {clienteId ? (
+            {clienteId && !solicitacaoInfo?._clienteCriado && (
               <span style={{ fontSize: '0.8rem', color: '#166534' }}>✅ Cliente encontrado e selecionado automaticamente. Ajuste os preparos antes de salvar.</span>
-            ) : (
-              <span style={{ fontSize: '0.8rem', color: '#991b1b' }}>⚠️ Cliente não encontrado pelo e-mail/nome. <b>Cadastre o cliente primeiro</b> ou selecione manualmente abaixo.</span>
+            )}
+            {clienteId && solicitacaoInfo?._clienteCriado && (
+              <span style={{ fontSize: '0.8rem', color: '#1d4ed8' }}>🆕 Cliente <b>{solicitacaoInfo.nome}</b> cadastrado automaticamente. Confira os dados na aba de Clientes se necessário.</span>
+            )}
+            {!clienteId && (
+              <span style={{ fontSize: '0.8rem', color: '#991b1b' }}>⚠️ Não foi possível criar o cliente automaticamente. Selecione manualmente abaixo.</span>
             )}
           </div>
         )}
