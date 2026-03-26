@@ -135,7 +135,7 @@ export default function SolicitacaoDetalhePage() {
             {sol.status !== 'REPROVADO' && (
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--gray-200)' }}>
                 <Link
-                  to={`/pedidos/novo?portalNome=${encodeURIComponent(sol.nome)}&portalEmail=${encodeURIComponent(sol.email)}`}
+                  to={`/pedidos/novo?solicitacaoId=${sol.id}`}
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'center', display: 'block' }}
                 >

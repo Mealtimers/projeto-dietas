@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { pedidosApi, clientesApi, alimentosApi, gruposApi } from '../../services/api';
+import { pedidosApi, clientesApi, alimentosApi, gruposApi, solicitacoesApi } from '../../services/api';
 
 const STATUS_BLOQUEADO = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
 
@@ -10,9 +10,11 @@ export default function PedidoFormPage() {
   const [searchParams]          = useSearchParams();
   const repetirDeId             = searchParams.get('repetirDe');
   const clienteIdParam          = searchParams.get('clienteId');
+  const solicitacaoId           = searchParams.get('solicitacaoId');
 
-  const isEdit   = Boolean(editId);
-  const isRepeat = Boolean(repetirDeId) && !isEdit;
+  const isEdit        = Boolean(editId);
+  const isRepeat      = Boolean(repetirDeId) && !isEdit;
+  const isDeSolicitacao = Boolean(solicitacaoId) && !isEdit;
 
   const [clientes, setClientes]   = useState([]);
   const [alimentos, setAlimentos] = useState([]);
@@ -35,6 +37,7 @@ export default function PedidoFormPage() {
   const [legume,      setLegume]      = useState({ ativo: false, gramagem: '', preparos: new Set() });
   const [obsLegumes,  setObsLegumes]  = useState('');
   const [nutricionista, setNutricionista] = useState('');
+  const [solicitacaoInfo, setSolicitacaoInfo] = useState(null); // banner info from portal
 
   // Pre-fill state from a loaded pedido (edit or repeat)
   const initFromPedido = (pedido) => {
@@ -69,17 +72,63 @@ export default function PedidoFormPage() {
     setNutricionista(pedido.nutricionista || '');
   };
 
+  const initFromSolicitacao = (sol, alimentosCarregados, gruposCarregados) => {
+    setSolicitacaoInfo({ nome: sol.nome, email: sol.email, telefone: sol.telefone });
+    setObservacoes(sol.observacoes || '');
+
+    // Proteínas — tenta casar pelo nome
+    const novasProteinas = (sol.proteinas || []).map((p) => {
+      const alimento = alimentosCarregados.find(
+        (a) => a.nome.toLowerCase() === (p.alimentoNome || '').toLowerCase()
+      );
+      return {
+        alimentoBaseId:   alimento?.id || '',
+        gramagem:         String(p.gramagem || ''),
+        quantidadePratos: String(p.quantidade || ''),
+        preparosIds:      new Set(),
+      };
+    });
+    if (novasProteinas.length > 0) setProteinas(novasProteinas);
+
+    // Helper: ativa grupo, preenche gramagem e marca preparos dos alimentos correspondentes
+    const ativarGrupo = (dadosGrupo, nomeGrupo, setter) => {
+      if (!dadosGrupo) return;
+      const names    = dadosGrupo.alimentoNomes || [];
+      const grp      = gruposCarregados.find((g) => g.nome === nomeGrupo);
+      const alimentosGrupo = grp ? alimentosCarregados.filter((a) => a.grupoId === grp.id) : [];
+      const preparos = new Set();
+      alimentosGrupo.forEach((a) => {
+        const incluir = names.length === 0 || names.some((n) => n.toLowerCase() === a.nome.toLowerCase());
+        if (incluir) (a.preparos || []).forEach((p) => preparos.add(p.id));
+      });
+      setter({ ativo: true, gramagem: String(dadosGrupo.gramagem || ''), preparos });
+    };
+
+    ativarGrupo(sol.carboidrato, 'Carboidrato', setCarboidrato);
+    ativarGrupo(sol.leguminosa,  'Leguminosa',  setLeguminosa);
+    ativarGrupo(sol.legume,      'Legume',       setLegume);
+    if (sol.legume?.obs) setObsLegumes(sol.legume.obs);
+  };
+
   useEffect(() => {
     const pedidoSource = isEdit ? editId : repetirDeId;
 
     const promises = [clientesApi.listar(), alimentosApi.listar(), gruposApi.listar()];
-    if (pedidoSource) promises.push(pedidosApi.buscar(pedidoSource));
+    if (pedidoSource)   promises.push(pedidosApi.buscar(pedidoSource));
+    if (solicitacaoId)  promises.push(solicitacoesApi.buscar(solicitacaoId));
 
     Promise.all(promises)
-      .then(([cRes, aRes, gRes, pRes]) => {
+      .then((results) => {
+        const [cRes, aRes, gRes, extra1, extra2] = results;
+        const alimentosAtivos = aRes.data.filter((a) => a.ativo !== false);
         setClientes(cRes.data);
-        setAlimentos(aRes.data.filter((a) => a.ativo !== false));
+        setAlimentos(alimentosAtivos);
         setGrupos(gRes.data);
+
+        // Determina qual resultado é do pedido e qual é da solicitação
+        const pRes  = pedidoSource ? extra1 : null;
+        const sRes  = solicitacaoId ? (pedidoSource ? extra2 : extra1) : null;
+
         if (pRes) {
           const pedido = pRes.data;
           if (isEdit && STATUS_BLOQUEADO.includes(pedido.status)) {
@@ -87,6 +136,8 @@ export default function PedidoFormPage() {
           } else {
             initFromPedido(pedido);
           }
+        } else if (sRes) {
+          initFromSolicitacao(sRes.data, alimentosAtivos, gRes.data);
         } else if (clienteIdParam) {
           setClienteId(clienteIdParam);
         }
@@ -191,7 +242,7 @@ export default function PedidoFormPage() {
   const gramStyle = { display: 'flex', alignItems: 'center', gap: 4 };
   const gSuffix   = <span style={{ fontSize: '0.875rem', color: 'var(--gray-400)' }}>g</span>;
 
-  const pageTitle = isEdit ? 'Editar Pedido' : isRepeat ? 'Repetir Pedido' : 'Novo Pedido';
+  const pageTitle = isEdit ? 'Editar Pedido' : isRepeat ? 'Repetir Pedido' : isDeSolicitacao ? 'Novo Pedido (Solicitação do Portal)' : 'Novo Pedido';
 
   const renderGrupoOpcional = ({ titulo, grupoNome, grupoDbNome, estado, setEstado }) => {
     const alimentosGrupo = porGrupo(grupoDbNome || grupoNome);
@@ -354,6 +405,15 @@ export default function PedidoFormPage() {
         {isRepeat && (
           <div className="alert alert-info" style={{ marginBottom: 16 }}>
             📋 Os dados do pedido anterior foram pré-preenchidos. Ajuste o que precisar antes de salvar.
+          </div>
+        )}
+        {isDeSolicitacao && solicitacaoInfo && (
+          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem', color: '#92400e' }}>
+            <b>📋 Solicitação do Portal:</b> {solicitacaoInfo.nome}
+            {solicitacaoInfo.email && <> · {solicitacaoInfo.email}</>}
+            {solicitacaoInfo.telefone && <> · {solicitacaoInfo.telefone}</>}
+            <br />
+            <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>Gramagens, proteínas e grupos foram pré-preenchidos. Selecione o cliente cadastrado e ajuste os preparos antes de salvar.</span>
           </div>
         )}
 
