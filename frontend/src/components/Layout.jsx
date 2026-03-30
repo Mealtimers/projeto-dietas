@@ -15,7 +15,7 @@ export default function Layout() {
         .catch(() => {});
     };
     fetchContagem();
-    const interval = setInterval(fetchContagem, 30000); // atualiza a cada 30s
+    const interval = setInterval(fetchContagem, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -26,9 +26,9 @@ export default function Layout() {
 
   return (
     <div className="app-wrapper">
-      <aside className="sidebar">
 
-        {/* ── Logo da marca ── */}
+      {/* ── Sidebar (desktop) ── */}
+      <aside className="sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-brand-name">MEAL TIME</div>
           <div className="sidebar-brand-sub">ULTRACONGELADOS</div>
@@ -82,19 +82,13 @@ export default function Layout() {
           <button
             onClick={handleLogout}
             style={{
-              width: '100%',
-              padding: '7px 12px',
+              width: '100%', padding: '7px 12px',
               background: 'rgba(255,255,255,0.08)',
               border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 8,
-              color: 'rgba(255,255,255,0.7)',
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              transition: 'background 0.2s',
+              borderRadius: 8, color: 'rgba(255,255,255,0.7)',
+              fontSize: '0.78rem', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 6, transition: 'background 0.2s',
             }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
             onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
@@ -106,6 +100,40 @@ export default function Layout() {
           </div>
         </div>
       </aside>
+
+      {/* ── Bottom nav (mobile) ── */}
+      <nav className="bottom-nav">
+        <NavLink to="/" end className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon">📊</span>
+          <span className="bottom-nav-label">Dashboard</span>
+        </NavLink>
+        <NavLink to="/clientes" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon">👥</span>
+          <span className="bottom-nav-label">Clientes</span>
+        </NavLink>
+        <NavLink to="/pedidos" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon">📋</span>
+          <span className="bottom-nav-label">Pedidos</span>
+        </NavLink>
+        <NavLink to="/producao" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon">⚙️</span>
+          <span className="bottom-nav-label">Produção</span>
+        </NavLink>
+        <NavLink to="/solicitacoes" className={({ isActive }) => `bottom-nav-item${isActive ? ' active' : ''}`}>
+          <span className="bottom-nav-icon" style={{ position: 'relative', display: 'inline-block' }}>
+            📥
+            {solicitacoesPendentes > 0 && (
+              <span style={{
+                position: 'absolute', top: -4, right: -6,
+                background: '#ef4444', color: '#fff',
+                borderRadius: '50%', fontSize: '0.6rem', fontWeight: 700,
+                width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{solicitacoesPendentes}</span>
+            )}
+          </span>
+          <span className="bottom-nav-label">Solicitações</span>
+        </NavLink>
+      </nav>
 
       <main className="main-content">
         <Outlet />

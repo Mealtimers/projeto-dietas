@@ -157,7 +157,19 @@ export default function PortalPage() {
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #7B1A1A 0%, #3D0B0B 100%)', padding: '20px 16px' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #7B1A1A 0%, #3D0B0B 100%)', padding: '20px 12px' }}>
+    <style>{`
+      @media (max-width: 520px) {
+        .portal-card { border-radius: 12px !important; }
+        .portal-section { padding: 14px !important; }
+        .portal-header { padding: 14px !important; }
+        .portal-protein-row { flex-direction: column !important; gap: 6px !important; }
+        .portal-protein-row > div { flex: 1 1 100% !important; width: 100% !important; }
+        .portal-protein-row input[type="number"] { width: 100% !important; box-sizing: border-box; }
+        .portal-nav-btns { flex-direction: column-reverse; gap: 8px !important; }
+        .portal-nav-btns button { width: 100%; }
+      }
+    `}</style>
       {/* Header */}
       <div style={{ maxWidth: 660, margin: '0 auto 16px' }}>
         <div style={{ textAlign: 'center', color: '#fff' }}>
@@ -184,7 +196,7 @@ export default function PortalPage() {
       </div>
 
       {/* Card principal */}
-      <div style={{ maxWidth: 660, margin: '0 auto', background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+      <div className="portal-card" style={{ maxWidth: 660, margin: '0 auto', background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
 
         {error && (
           <div style={{ background: '#fee2e2', color: '#991b1b', padding: '10px 20px', fontSize: '0.875rem', borderBottom: '1px solid #fca5a5' }}>
@@ -266,7 +278,7 @@ export default function PortalPage() {
               </div>
 
               {proteinas.map((p, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div key={idx} className="portal-protein-row" style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                   <div style={{ flex: '1 1 160px' }}>
                     <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: 3 }}>Alimento</div>
                     <select style={selectStyle} value={p.alimentoNome} onChange={e => updateProteina(idx, 'alimentoNome', e.target.value)}>
@@ -389,7 +401,7 @@ export default function PortalPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="portal-nav-btns" style={{ display: 'flex', gap: 10 }}>
               <button style={btnSecondaryStyle} onClick={() => setStep(1)}>← Voltar</button>
               <button style={{ ...btnPrimaryStyle, flex: 1 }} onClick={handleNext}>Revisar pedido →</button>
             </div>
