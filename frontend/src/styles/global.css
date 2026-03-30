@@ -467,25 +467,27 @@ tr:last-child td { border-bottom: none; }
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: 60px;
+  height: 58px;
   background: linear-gradient(0deg, #1a0606 0%, #2d0d0d 100%);
   border-top: 1px solid rgba(255,255,255,0.1);
   z-index: 100;
   box-shadow: 0 -2px 12px rgba(0,0,0,0.35);
+  /* garante que todos os 5 itens caibam */
+  width: 100%;
+  overflow: hidden;
 }
 .bottom-nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   gap: 2px;
   color: rgba(255,255,255,0.5);
   text-decoration: none;
-  font-size: 0.6rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 6px 4px;
+  padding: 5px 2px;
   transition: color 0.15s;
   border-top: 2px solid transparent;
 }
@@ -494,8 +496,16 @@ tr:last-child td { border-bottom: none; }
   color: #fff;
   border-top-color: #e87070;
 }
-.bottom-nav-icon { font-size: 1.15rem; line-height: 1; }
-.bottom-nav-label { font-size: 0.58rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 56px; }
+.bottom-nav-icon { font-size: 1.1rem; line-height: 1; }
+.bottom-nav-label {
+  font-size: 0.56rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  text-align: center;
+  padding: 0 2px;
+}
 
 /* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 768px) {
