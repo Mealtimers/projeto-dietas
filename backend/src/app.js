@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path        = require('path');
+const fs          = require('fs');
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
@@ -11,6 +12,9 @@ const auth         = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
+
+// ── Trust proxy (Railway/Heroku usa reverse proxy) ──────────────
+app.set('trust proxy', 1);
 
 // ── Segurança ────────────────────────────────────────────────────
 app.use(helmet({
@@ -32,8 +36,16 @@ app.use(cors({
 }));
 
 // ── Frontend estático (produção) ────────────────────────────────
-// Serve ANTES do rate limiter para não contar arquivos estáticos no limite
-const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+// Detecta o caminho do frontend/dist dinamicamente (varia entre dev local e Railway)
+const possibleDistPaths = [
+  path.join(__dirname, '..', '..', 'frontend', 'dist'),      // dev local
+  path.resolve(process.cwd(), '..', 'frontend', 'dist'),     // Railway (cwd = /app/backend)
+  path.resolve(process.cwd(), 'frontend', 'dist'),           // Railway (cwd = /app)
+  '/app/frontend/dist',                                       // Railway absoluto
+];
+const frontendDist = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html'))) || possibleDistPaths[0];
+console.log('Frontend dist path:', frontendDist, '| exists:', fs.existsSync(path.join(frontendDist, 'index.html')));
+
 app.use(express.static(frontendDist));
 
 app.use(express.json({ limit: '1mb' }));
@@ -67,7 +79,12 @@ app.use(errorHandler);
 
 // Catch-all: qualquer rota que NÃO seja /api retorna index.html (SPA routing)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendDist, 'index.html'));
+  const indexPath = path.join(frontendDist, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ error: 'Frontend não encontrado. Execute npm run build no frontend.' });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
