@@ -1,12 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { pedidosApi, clientesApi, alimentosApi, gruposApi, solicitacoesApi } from '../../services/api';
 
 const STATUS_BLOQUEADO = ['APROVADO', 'CONCLUIDO', 'CANCELADO'];
 
+/* ── Helper: estado vazio de uma refeição ── */
+const emptyRefeicao = () => ({
+  proteinas: [{ alimentoBaseId: '', gramagem: '', quantidadePratos: '', preparosIds: new Set() }],
+  carboidrato: { ativo: false, gramagem: '', preparos: new Set() },
+  leguminosa:  { ativo: false, gramagem: '', preparos: new Set() },
+  legume:      { ativo: false, gramagem: '', preparos: new Set() },
+  obsLegumes:  '',
+});
+
+/* ── Deep-clone de refeição (Sets não copiam com spread) ── */
+const cloneRefeicao = (ref) => ({
+  proteinas: ref.proteinas.map((p) => ({
+    ...p,
+    preparosIds: new Set(p.preparosIds),
+  })),
+  carboidrato: { ...ref.carboidrato, preparos: new Set(ref.carboidrato.preparos) },
+  leguminosa:  { ...ref.leguminosa,  preparos: new Set(ref.leguminosa.preparos) },
+  legume:      { ...ref.legume,      preparos: new Set(ref.legume.preparos) },
+  obsLegumes:  ref.obsLegumes,
+});
+
 export default function PedidoFormPage() {
   const navigate = useNavigate();
-  const { id: editId }          = useParams();               // /pedidos/:id/editar
+  const { id: editId }          = useParams();
   const [searchParams]          = useSearchParams();
   const repetirDeId             = searchParams.get('repetirDe');
   const clienteIdParam          = searchParams.get('clienteId');
@@ -16,6 +37,7 @@ export default function PedidoFormPage() {
   const isRepeat      = Boolean(repetirDeId) && !isEdit;
   const isDeSolicitacao = Boolean(solicitacaoId) && !isEdit;
 
+  /* ── Dados base ── */
   const [clientes, setClientes]   = useState([]);
   const [alimentos, setAlimentos] = useState([]);
   const [grupos, setGrupos]       = useState([]);
@@ -23,39 +45,32 @@ export default function PedidoFormPage() {
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState(null);
 
+  /* ── Configurações compartilhadas ── */
   const [clienteId, setClienteId]                 = useState(clienteIdParam || '');
   const [maxRepeticoes, setMaxRepeticoes]         = useState(3);
   const [minRepeticoesLote, setMinRepeticoesLote] = useState(2);
   const [observacoes, setObservacoes]             = useState('');
-  const [tipoRefeicao, setTipoRefeicao]         = useState('ALMOCO');
+  const [nutricionista, setNutricionista]          = useState('');
+  const [solicitacaoInfo, setSolicitacaoInfo]      = useState(null);
 
-  const [proteinas, setProteinas] = useState([
-    { alimentoBaseId: '', gramagem: '', quantidadePratos: '', preparosIds: new Set() },
-  ]);
+  /* ── Estado por refeição ── */
+  const [almoco, setAlmoco] = useState(emptyRefeicao());
+  const [jantar, setJantar] = useState(emptyRefeicao());
+  const [incluirJantar, setIncluirJantar] = useState(false);
+  const [abaAtiva, setAbaAtiva] = useState('ALMOCO');
 
-  const [carboidrato, setCarboidrato] = useState({ ativo: false, gramagem: '', preparos: new Set() });
-  const [leguminosa,  setLeguminosa]  = useState({ ativo: false, gramagem: '', preparos: new Set() });
-  const [legume,      setLegume]      = useState({ ativo: false, gramagem: '', preparos: new Set() });
-  const [obsLegumes,  setObsLegumes]  = useState('');
-  const [nutricionista, setNutricionista] = useState('');
-  const [solicitacaoInfo, setSolicitacaoInfo] = useState(null); // banner info from portal
+  // Referência ao estado ativo
+  const refAtiva    = abaAtiva === 'ALMOCO' ? almoco : jantar;
+  const setRefAtiva = abaAtiva === 'ALMOCO' ? setAlmoco : setJantar;
 
-  // Pre-fill state from a loaded pedido (edit or repeat)
-  const initFromPedido = (pedido) => {
-    setClienteId(pedido.clienteId);
-    setTipoRefeicao(pedido.tipoRefeicao || 'ALMOCO');
-    setMaxRepeticoes(pedido.maxRepeticoes);
-    setMinRepeticoesLote(pedido.minRepeticoesLote);
-    setObservacoes(pedido.observacoes || '');
-
-    setProteinas(
-      (pedido.proteinas || []).map((p) => ({
-        alimentoBaseId:   p.alimentoBaseId,
-        gramagem:         String(p.gramagem),
-        quantidadePratos: String(p.quantidadePratos),
-        preparosIds:      new Set(p.preparosIds || []),
-      }))
-    );
+  /* ── Inicialização a partir de pedido existente ── */
+  const buildRefeicaoFromPedido = useCallback((pedido) => {
+    const proteinas = (pedido.proteinas || []).map((p) => ({
+      alimentoBaseId:   p.alimentoBaseId,
+      gramagem:         String(p.gramagem),
+      quantidadePratos: String(p.quantidadePratos),
+      preparosIds:      new Set(p.preparosIds || []),
+    }));
 
     const grupoFromItems = (grupoNome) => {
       const itens = (pedido.itensPermitidos || []).filter((i) => i.grupoNome === grupoNome);
@@ -67,25 +82,42 @@ export default function PedidoFormPage() {
       };
     };
 
-    setCarboidrato(grupoFromItems('Carboidrato'));
-    setLeguminosa(grupoFromItems('Leguminosa'));
-    setLegume(grupoFromItems('Legumes'));
-    setObsLegumes(pedido.obsLegumes || '');
-    setNutricionista(pedido.nutricionista || '');
-  };
+    return {
+      proteinas: proteinas.length > 0 ? proteinas : emptyRefeicao().proteinas,
+      carboidrato: grupoFromItems('Carboidrato'),
+      leguminosa:  grupoFromItems('Leguminosa'),
+      legume:      grupoFromItems('Legumes'),
+      obsLegumes:  pedido.obsLegumes || '',
+    };
+  }, []);
 
-  const initFromSolicitacao = async (sol, alimentosCarregados, gruposCarregados, clientesCarregados) => {
+  const initFromPedido = useCallback((pedido) => {
+    setClienteId(pedido.clienteId);
+    setMaxRepeticoes(pedido.maxRepeticoes);
+    setMinRepeticoesLote(pedido.minRepeticoesLote);
+    setObservacoes(pedido.observacoes || '');
+    setNutricionista(pedido.nutricionista || '');
+
+    const ref = buildRefeicaoFromPedido(pedido);
+    if (pedido.tipoRefeicao === 'JANTAR') {
+      setJantar(ref);
+      setIncluirJantar(true);
+      setAbaAtiva('JANTAR');
+    } else {
+      setAlmoco(ref);
+    }
+  }, [buildRefeicaoFromPedido]);
+
+  const initFromSolicitacao = useCallback(async (sol, alimentosCarregados, gruposCarregados, clientesCarregados) => {
     setSolicitacaoInfo({ nome: sol.nome, email: sol.email, telefone: sol.telefone });
     setObservacoes(sol.observacoes || '');
 
-    // Tenta casar o cliente pelo e-mail ou nome
     let clienteMatch = clientesCarregados.find(
       (c) =>
         (sol.email && c.email?.toLowerCase() === sol.email.toLowerCase()) ||
         c.nome?.toLowerCase() === sol.nome?.toLowerCase()
     );
 
-    // Se não encontrou, cria o cliente automaticamente com os dados do portal
     if (!clienteMatch) {
       try {
         const payload = { nome: sol.nome, telefone: sol.telefone || '' };
@@ -101,7 +133,6 @@ export default function PedidoFormPage() {
 
     if (clienteMatch) setClienteId(clienteMatch.id);
 
-    // Proteínas — tenta casar pelo nome
     const novasProteinas = (sol.proteinas || []).map((p) => {
       const alimento = alimentosCarregados.find(
         (a) => a.nome.toLowerCase() === (p.alimentoNome || '').toLowerCase()
@@ -113,11 +144,9 @@ export default function PedidoFormPage() {
         preparosIds:      new Set(),
       };
     });
-    if (novasProteinas.length > 0) setProteinas(novasProteinas);
 
-    // Helper: ativa grupo, preenche gramagem e marca preparos dos alimentos correspondentes
-    const ativarGrupo = (dadosGrupo, nomeGrupo, setter) => {
-      if (!dadosGrupo) return;
+    const ativarGrupo = (dadosGrupo, nomeGrupo) => {
+      if (!dadosGrupo) return { ativo: false, gramagem: '', preparos: new Set() };
       const names    = dadosGrupo.alimentoNomes || [];
       const grp      = gruposCarregados.find((g) => g.nome === nomeGrupo);
       const alimentosGrupo = grp ? alimentosCarregados.filter((a) => a.grupoId === grp.id) : [];
@@ -126,21 +155,23 @@ export default function PedidoFormPage() {
         const incluir = names.length === 0 || names.some((n) => n.toLowerCase() === a.nome.toLowerCase());
         if (incluir) (a.preparos || []).forEach((p) => preparos.add(p.id));
       });
-      setter({ ativo: true, gramagem: String(dadosGrupo.gramagem || ''), preparos });
+      return { ativo: true, gramagem: String(dadosGrupo.gramagem || ''), preparos };
     };
 
-    ativarGrupo(sol.carboidrato, 'Carboidrato', setCarboidrato);
-    ativarGrupo(sol.leguminosa,  'Leguminosa',  setLeguminosa);
-    ativarGrupo(sol.legume,      'Legume',       setLegume);
-    if (sol.legume?.obs) setObsLegumes(sol.legume.obs);
-  };
+    setAlmoco({
+      proteinas:   novasProteinas.length > 0 ? novasProteinas : emptyRefeicao().proteinas,
+      carboidrato: ativarGrupo(sol.carboidrato, 'Carboidrato'),
+      leguminosa:  ativarGrupo(sol.leguminosa,  'Leguminosa'),
+      legume:      ativarGrupo(sol.legume,       'Legume'),
+      obsLegumes:  sol.legume?.obs || '',
+    });
+  }, []);
 
   useEffect(() => {
     const pedidoSource = isEdit ? editId : repetirDeId;
-
     const promises = [clientesApi.listar(), alimentosApi.listar(), gruposApi.listar()];
-    if (pedidoSource)   promises.push(pedidosApi.buscar(pedidoSource));
-    if (solicitacaoId)  promises.push(solicitacoesApi.buscar(solicitacaoId));
+    if (pedidoSource)  promises.push(pedidosApi.buscar(pedidoSource));
+    if (solicitacaoId) promises.push(solicitacoesApi.buscar(solicitacaoId));
 
     Promise.all(promises)
       .then(async (results) => {
@@ -150,9 +181,8 @@ export default function PedidoFormPage() {
         setAlimentos(alimentosAtivos);
         setGrupos(gRes.data);
 
-        // Determina qual resultado é do pedido e qual é da solicitação
-        const pRes  = pedidoSource ? extra1 : null;
-        const sRes  = solicitacaoId ? (pedidoSource ? extra2 : extra1) : null;
+        const pRes = pedidoSource ? extra1 : null;
+        const sRes = solicitacaoId ? (pedidoSource ? extra2 : extra1) : null;
 
         if (pRes) {
           const pedido = pRes.data;
@@ -172,65 +202,92 @@ export default function PedidoFormPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ── Helpers de proteínas (operam no estado da aba ativa) ── */
   const porGrupo = (nomeGrupo) => {
     const g = grupos.find((gr) => gr.nome === nomeGrupo);
     return g ? alimentos.filter((a) => a.grupoId === g.id) : [];
   };
 
-  // Proteínas
   const addProteina = () =>
-    setProteinas((prev) => [...prev, { alimentoBaseId: '', gramagem: '', quantidadePratos: '', preparosIds: new Set() }]);
-  const removeProteina = (idx) =>
-    setProteinas((prev) => prev.filter((_, i) => i !== idx));
-  const updateProteina = (idx, field, value) =>
-    setProteinas((prev) => prev.map((item, i) => {
-      if (i !== idx) return item;
-      if (field === 'alimentoBaseId') return { ...item, [field]: value, preparosIds: new Set() };
-      return { ...item, [field]: value };
-    }));
-  const toggleProteinaPreparo = (idx, preparoId) =>
-    setProteinas((prev) => prev.map((item, i) => {
-      if (i !== idx) return item;
-      const next = new Set(item.preparosIds);
-      next.has(preparoId) ? next.delete(preparoId) : next.add(preparoId);
-      return { ...item, preparosIds: next };
-    }));
-  const toggleTodosProteinaPreparo = (idx, todosIds) =>
-    setProteinas((prev) => prev.map((item, i) => {
-      if (i !== idx) return item;
-      const todosMarcados = todosIds.every((id) => item.preparosIds.has(id));
-      return { ...item, preparosIds: todosMarcados ? new Set() : new Set(todosIds) };
+    setRefAtiva((prev) => ({
+      ...prev,
+      proteinas: [...prev.proteinas, { alimentoBaseId: '', gramagem: '', quantidadePratos: '', preparosIds: new Set() }],
     }));
 
-  const togglePreparo = (setter, preparoId) =>
-    setter((prev) => {
-      const next = new Set(prev.preparos);
+  const removeProteina = (idx) =>
+    setRefAtiva((prev) => ({
+      ...prev,
+      proteinas: prev.proteinas.filter((_, i) => i !== idx),
+    }));
+
+  const updateProteina = (idx, field, value) =>
+    setRefAtiva((prev) => ({
+      ...prev,
+      proteinas: prev.proteinas.map((item, i) => {
+        if (i !== idx) return item;
+        if (field === 'alimentoBaseId') return { ...item, [field]: value, preparosIds: new Set() };
+        return { ...item, [field]: value };
+      }),
+    }));
+
+  const toggleProteinaPreparo = (idx, preparoId) =>
+    setRefAtiva((prev) => ({
+      ...prev,
+      proteinas: prev.proteinas.map((item, i) => {
+        if (i !== idx) return item;
+        const next = new Set(item.preparosIds);
+        next.has(preparoId) ? next.delete(preparoId) : next.add(preparoId);
+        return { ...item, preparosIds: next };
+      }),
+    }));
+
+  const toggleTodosProteinaPreparo = (idx, todosIds) =>
+    setRefAtiva((prev) => ({
+      ...prev,
+      proteinas: prev.proteinas.map((item, i) => {
+        if (i !== idx) return item;
+        const todosMarcados = todosIds.every((id) => item.preparosIds.has(id));
+        return { ...item, preparosIds: todosMarcados ? new Set() : new Set(todosIds) };
+      }),
+    }));
+
+  const togglePreparo = (field, preparoId) =>
+    setRefAtiva((prev) => {
+      const grupo = prev[field];
+      const next = new Set(grupo.preparos);
       next.has(preparoId) ? next.delete(preparoId) : next.add(preparoId);
-      return { ...prev, preparos: next };
+      return { ...prev, [field]: { ...grupo, preparos: next } };
     });
 
-  const totalPratos = proteinas.reduce((s, p) => s + (parseInt(p.quantidadePratos) || 0), 0);
+  const setGrupoField = (field, updates) =>
+    setRefAtiva((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], ...updates },
+    }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+  const totalPratos = refAtiva.proteinas.reduce((s, p) => s + (parseInt(p.quantidadePratos) || 0), 0);
 
-    if (!clienteId) return setError('Selecione um cliente.');
+  /* ── Copiar almoço para jantar ── */
+  const repetirDoAlmoco = () => {
+    setJantar(cloneRefeicao(almoco));
+  };
 
-    const proteinasValidas = proteinas.filter(
+  /* ── Submit ── */
+  const buildPayload = (refeicaoState, tipo) => {
+    const proteinasValidas = refeicaoState.proteinas.filter(
       (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
     );
-    if (proteinasValidas.length === 0)
-      return setError('Informe ao menos uma proteína com gramagem e quantidade de pratos.');
+    const total = proteinasValidas.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
 
     const toGrupo = (g) =>
       g.ativo && g.preparos.size > 0 && parseFloat(g.gramagem) > 0
         ? { gramagem: parseFloat(g.gramagem), preparos: Array.from(g.preparos) }
         : { gramagem: 0, preparos: [] };
 
-    const payload = {
-      tipoRefeicao,
-      totalPratos,
+    return {
+      clienteId,
+      tipoRefeicao: tipo,
+      totalPratos: total,
       maxRepeticoes:     parseInt(maxRepeticoes),
       minRepeticoesLote: parseInt(minRepeticoesLote),
       observacoes,
@@ -240,22 +297,64 @@ export default function PedidoFormPage() {
         quantidadePratos: parseInt(p.quantidadePratos),
         preparosIds:      Array.from(p.preparosIds),
       })),
-      carboidratos: toGrupo(carboidrato),
-      leguminosas:  toGrupo(leguminosa),
-      legumes:      toGrupo(legume),
-      obsLegumes:   obsLegumes.trim() || null,
+      carboidratos: toGrupo(refeicaoState.carboidrato),
+      leguminosas:  toGrupo(refeicaoState.leguminosa),
+      legumes:      toGrupo(refeicaoState.legume),
+      obsLegumes:   refeicaoState.obsLegumes?.trim() || null,
       nutricionista: nutricionista.trim() || null,
     };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!clienteId) return setError('Selecione um cliente.');
+
+    // Validar almoço
+    const protAlmoco = almoco.proteinas.filter(
+      (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
+    );
+    if (protAlmoco.length === 0)
+      return setError('Informe ao menos uma proteína no Almoço com gramagem e quantidade de pratos.');
+
+    const totalAlmoco = protAlmoco.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
+    if (totalAlmoco < 5)
+      return setError('O Almoço deve ter no mínimo 5 pratos.');
+
+    // Validar jantar (se habilitado)
+    if (incluirJantar) {
+      const protJantar = jantar.proteinas.filter(
+        (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
+      );
+      if (protJantar.length === 0)
+        return setError('Informe ao menos uma proteína no Jantar com gramagem e quantidade de pratos.');
+
+      const totalJantar = protJantar.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
+      if (totalJantar < 5)
+        return setError('O Jantar deve ter no mínimo 5 pratos.');
+    }
 
     setSaving(true);
     try {
-      let res;
       if (isEdit) {
-        res = await pedidosApi.atualizar(editId, payload);
+        // Edição — atualiza o pedido existente
+        const payload = buildPayload(almoco, 'ALMOCO');
+        delete payload.clienteId; // não muda cliente
+        const res = await pedidosApi.atualizar(editId, payload);
+        navigate(`/pedidos/${res.data.id}`);
       } else {
-        res = await pedidosApi.criar({ ...payload, clienteId });
+        // Criação — cria almoço e opcionalmente jantar
+        const payloadAlmoco = buildPayload(almoco, 'ALMOCO');
+        const resAlmoco = await pedidosApi.criar(payloadAlmoco);
+
+        if (incluirJantar) {
+          const payloadJantar = buildPayload(jantar, 'JANTAR');
+          await pedidosApi.criar(payloadJantar);
+        }
+
+        navigate(`/pedidos/${resAlmoco.data.id}`);
       }
-      navigate(`/pedidos/${res.data.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao salvar pedido.');
     } finally {
@@ -270,7 +369,9 @@ export default function PedidoFormPage() {
 
   const pageTitle = isEdit ? 'Editar Pedido' : isRepeat ? 'Repetir Pedido' : isDeSolicitacao ? 'Novo Pedido (Solicitação do Portal)' : 'Novo Pedido';
 
-  const renderGrupoOpcional = ({ titulo, grupoNome, grupoDbNome, estado, setEstado }) => {
+  /* ── Render de grupo opcional (carboidrato, leguminosa, legume) ── */
+  const renderGrupoOpcional = ({ titulo, grupoNome, grupoDbNome, field }) => {
+    const estado = refAtiva[field];
     const alimentosGrupo = porGrupo(grupoDbNome || grupoNome);
     const totalPreparos  = alimentosGrupo.reduce((s, a) => s + (a.preparos?.length || 0), 0);
     const isCarb         = grupoNome === 'Carboidrato';
@@ -278,20 +379,20 @@ export default function PedidoFormPage() {
     const toggleTodosAlimento = (alimento) => {
       const ids = alimento.preparos.map((p) => p.id);
       const todosMarcados = ids.every((id) => estado.preparos.has(id));
-      setEstado((prev) => {
-        const next = new Set(prev.preparos);
+      setRefAtiva((prev) => {
+        const next = new Set(prev[field].preparos);
         if (todosMarcados) ids.forEach((id) => next.delete(id));
         else ids.forEach((id) => next.add(id));
-        return { ...prev, preparos: next };
+        return { ...prev, [field]: { ...prev[field], preparos: next } };
       });
     };
 
     const toggleTodosGrupo = () => {
       const todosIds = alimentosGrupo.flatMap((a) => a.preparos.map((p) => p.id));
       const todosMarcados = todosIds.every((id) => estado.preparos.has(id));
-      setEstado((prev) => ({
+      setRefAtiva((prev) => ({
         ...prev,
-        preparos: todosMarcados ? new Set() : new Set(todosIds),
+        [field]: { ...prev[field], preparos: todosMarcados ? new Set() : new Set(todosIds) },
       }));
     };
 
@@ -301,7 +402,7 @@ export default function PedidoFormPage() {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
             <input
               type="checkbox" checked={estado.ativo}
-              onChange={(e) => setEstado((prev) => ({ ...prev, ativo: e.target.checked }))}
+              onChange={(e) => setGrupoField(field, { ativo: e.target.checked })}
               style={{ width: 16, height: 16, cursor: 'pointer' }}
             />
             <span className="card-title" style={{ margin: 0, border: 'none', padding: 0 }}>{titulo}</span>
@@ -323,7 +424,7 @@ export default function PedidoFormPage() {
                 <div style={gramStyle}>
                   <input
                     type="number" className="form-control" value={estado.gramagem}
-                    onChange={(e) => setEstado((prev) => ({ ...prev, gramagem: e.target.value }))}
+                    onChange={(e) => setGrupoField(field, { gramagem: e.target.value })}
                     placeholder="g" min="1"
                   />
                   {gSuffix}
@@ -400,7 +501,7 @@ export default function PedidoFormPage() {
                               fontSize: '0.85rem', fontWeight: sel ? 600 : 400,
                               userSelect: 'none', transition: 'all 0.12s',
                             }}>
-                              <input type="checkbox" checked={sel} onChange={() => togglePreparo(setEstado, preparo.id)} style={{ display: 'none' }} />
+                              <input type="checkbox" checked={sel} onChange={() => togglePreparo(field, preparo.id)} style={{ display: 'none' }} />
                               {preparo.nome}
                             </label>
                           );
@@ -413,6 +514,45 @@ export default function PedidoFormPage() {
             )}
           </>
         )}
+      </div>
+    );
+  };
+
+  /* ── Render de seção de observações legumes ── */
+  const renderObsLegumes = () => {
+    if (!refAtiva.legume.ativo) return null;
+    const grpLegumes    = grupos.find((g) => g.nome === 'Legume');
+    const legVarAlim    = grpLegumes
+      ? alimentos.find((a) => a.grupoId === grpLegumes.id && a.nome === 'Mix variado de vegetais')
+      : null;
+    const legVarPreparos = legVarAlim?.preparos ?? [];
+    const temLegVariado  = legVarPreparos.some((p) => refAtiva.legume.preparos.has(p.id));
+    if (!temLegVariado) return null;
+
+    return (
+      <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+          <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
+            Observações importantes
+          </span>
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ color: '#92400e' }}>
+            Informe o mix de legumes e/ou quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
+          </label>
+          <textarea
+            className="form-control"
+            value={refAtiva.obsLegumes}
+            onChange={(e) => setRefAtiva((prev) => ({ ...prev, obsLegumes: e.target.value }))}
+            placeholder="Ex: Mix de legumes (brócolis, cenoura, vagem). Sem chuchu, sem pimentão..."
+            rows={3}
+            style={{ borderColor: '#f59e0b', background: '#fff' }}
+          />
+          <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
+            Esta informação ficará destacada na ordem de produção para orientar a cozinha.
+          </small>
+        </div>
       </div>
     );
   };
@@ -430,53 +570,28 @@ export default function PedidoFormPage() {
         {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
         {isRepeat && (
           <div className="alert alert-info" style={{ marginBottom: 16 }}>
-            📋 Os dados do pedido anterior foram pré-preenchidos. Ajuste o que precisar antes de salvar.
+            Os dados do pedido anterior foram pré-preenchidos. Ajuste o que precisar antes de salvar.
           </div>
         )}
         {isDeSolicitacao && solicitacaoInfo && (
           <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem', color: '#92400e' }}>
-            <b>📋 Solicitação do Portal:</b> {solicitacaoInfo.nome}
+            <b>Solicitação do Portal:</b> {solicitacaoInfo.nome}
             {solicitacaoInfo.email && <> · {solicitacaoInfo.email}</>}
             {solicitacaoInfo.telefone && <> · {solicitacaoInfo.telefone}</>}
             <br />
             {clienteId && !solicitacaoInfo?._clienteCriado && (
-              <span style={{ fontSize: '0.8rem', color: '#166534' }}>✅ Cliente encontrado e selecionado automaticamente. Ajuste os preparos antes de salvar.</span>
+              <span style={{ fontSize: '0.8rem', color: '#166534' }}>Cliente encontrado e selecionado automaticamente. Ajuste os preparos antes de salvar.</span>
             )}
             {clienteId && solicitacaoInfo?._clienteCriado && (
-              <span style={{ fontSize: '0.8rem', color: '#1d4ed8' }}>🆕 Cliente <b>{solicitacaoInfo.nome}</b> cadastrado automaticamente. Confira os dados na aba de Clientes se necessário.</span>
+              <span style={{ fontSize: '0.8rem', color: '#1d4ed8' }}>Cliente <b>{solicitacaoInfo.nome}</b> cadastrado automaticamente. Confira os dados na aba de Clientes se necessário.</span>
             )}
             {!clienteId && (
-              <span style={{ fontSize: '0.8rem', color: '#991b1b' }}>⚠️ Não foi possível criar o cliente automaticamente. Selecione manualmente abaixo.</span>
+              <span style={{ fontSize: '0.8rem', color: '#991b1b' }}>Não foi possível criar o cliente automaticamente. Selecione manualmente abaixo.</span>
             )}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-
-          {/* ── Tipo de Refeição (abas) ── */}
-          <div style={{ display: 'flex', gap: 0, marginBottom: 20 }}>
-            {[
-              { key: 'ALMOCO', label: '🍽️ Almoço', desc: 'Configurar pedido de almoço' },
-              { key: 'JANTAR', label: '🌙 Jantar', desc: 'Configurar pedido de jantar' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTipoRefeicao(key)}
-                style={{
-                  flex: 1, padding: '14px 20px',
-                  background: tipoRefeicao === key ? 'var(--primary)' : '#fff',
-                  color: tipoRefeicao === key ? '#fff' : 'var(--gray-600)',
-                  border: `2px solid ${tipoRefeicao === key ? 'var(--primary)' : 'var(--gray-200)'}`,
-                  borderRadius: key === 'ALMOCO' ? '10px 0 0 10px' : '0 10px 10px 0',
-                  fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
 
           {/* ── Cliente e Configurações ── */}
           <div className="card" style={{ marginBottom: 20 }}>
@@ -521,14 +636,102 @@ export default function PedidoFormPage() {
             </div>
           </div>
 
-          {/* ── Proteínas ── */}
+          {/* ── Abas Almoço / Jantar ── */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+              {/* Aba Almoço — sempre visível */}
+              <button
+                key="ALMOCO"
+                type="button"
+                onClick={() => setAbaAtiva('ALMOCO')}
+                style={{
+                  padding: '14px 28px',
+                  background: abaAtiva === 'ALMOCO' ? 'var(--primary)' : '#fff',
+                  color: abaAtiva === 'ALMOCO' ? '#fff' : 'var(--gray-600)',
+                  border: `2px solid ${abaAtiva === 'ALMOCO' ? 'var(--primary)' : 'var(--gray-200)'}`,
+                  borderRadius: incluirJantar ? '10px 0 0 10px' : '10px',
+                  fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  flex: incluirJantar ? 1 : undefined,
+                }}
+              >
+                🍽️ Almoço
+                <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 400, marginTop: 2, opacity: 0.8 }}>
+                  {almoco.proteinas.reduce((s, p) => s + (parseInt(p.quantidadePratos) || 0), 0)} pratos
+                </span>
+              </button>
+
+              {/* Aba Jantar — só aparece quando habilitado */}
+              {incluirJantar && (
+                <button
+                  key="JANTAR"
+                  type="button"
+                  onClick={() => setAbaAtiva('JANTAR')}
+                  style={{
+                    flex: 1,
+                    padding: '14px 28px',
+                    background: abaAtiva === 'JANTAR' ? '#6366f1' : '#fff',
+                    color: abaAtiva === 'JANTAR' ? '#fff' : 'var(--gray-600)',
+                    border: `2px solid ${abaAtiva === 'JANTAR' ? '#6366f1' : 'var(--gray-200)'}`,
+                    borderRadius: '0 10px 10px 0',
+                    fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  🌙 Jantar
+                  <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 400, marginTop: 2, opacity: 0.8 }}>
+                    {jantar.proteinas.reduce((s, p) => s + (parseInt(p.quantidadePratos) || 0), 0)} pratos
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Checkbox incluir jantar + botão repetir */}
+            {!isEdit && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none', fontSize: '0.9rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={incluirJantar}
+                    onChange={(e) => {
+                      setIncluirJantar(e.target.checked);
+                      if (e.target.checked) {
+                        setAbaAtiva('JANTAR');
+                      } else {
+                        setAbaAtiva('ALMOCO');
+                        setJantar(emptyRefeicao());
+                      }
+                    }}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 600, color: 'var(--gray-700)' }}>Incluir Jantar neste pedido</span>
+                </label>
+
+                {incluirJantar && abaAtiva === 'JANTAR' && (
+                  <button
+                    type="button"
+                    onClick={repetirDoAlmoco}
+                    className="btn btn-outline"
+                    style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+                  >
+                    Repetir mesmas quantidades do Almoço
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Proteínas (da aba ativa) ── */}
           <div className="card" style={{ marginBottom: 20 }}>
-            <div className="card-title">Distribuição de Proteínas</div>
+            <div className="card-title">
+              Distribuição de Proteínas
+              {abaAtiva === 'JANTAR' && <span style={{ marginLeft: 8, fontSize: '0.75rem', fontWeight: 400, color: '#6366f1' }}>(Jantar)</span>}
+            </div>
             <p style={{ fontSize: '0.875rem', color: 'var(--gray-500)', marginBottom: 16 }}>
               Defina cada proteína, gramagem e quantidade de pratos. A soma será o total do pedido.
             </p>
 
-            {proteinas.map((item, idx) => {
+            {refAtiva.proteinas.map((item, idx) => {
               const alimentoSel  = alimentos.find((a) => a.id === item.alimentoBaseId);
               const preparosDisp = alimentoSel?.preparos?.filter((p) => p.ativo !== false) ?? [];
               const todosIds     = preparosDisp.map((p) => p.id);
@@ -556,7 +759,7 @@ export default function PedidoFormPage() {
                       <label className="form-label required">Qtd pratos</label>
                       <input type="number" className="form-control" value={item.quantidadePratos} onChange={(e) => updateProteina(idx, 'quantidadePratos', e.target.value)} placeholder="pratos" min="1" />
                     </div>
-                    {proteinas.length > 1 && (
+                    {refAtiva.proteinas.length > 1 && (
                       <button type="button" className="btn btn-secondary" style={{ marginBottom: 0, padding: '8px 12px' }} onClick={() => removeProteina(idx)}>✕</button>
                     )}
                   </div>
@@ -610,52 +813,23 @@ export default function PedidoFormPage() {
             </div>
           </div>
 
-          {/* ── Grupos opcionais ── */}
-          {renderGrupoOpcional({ titulo: 'Carboidrato', grupoNome: 'Carboidrato', estado: carboidrato, setEstado: setCarboidrato })}
-          {renderGrupoOpcional({ titulo: 'Leguminosa',  grupoNome: 'Leguminosa',  estado: leguminosa,  setEstado: setLeguminosa })}
-          {renderGrupoOpcional({ titulo: 'Legumes', grupoNome: 'Legumes', grupoDbNome: 'Legume', estado: legume, setEstado: setLegume })}
+          {/* ── Grupos opcionais (da aba ativa) ── */}
+          {renderGrupoOpcional({ titulo: 'Carboidrato', grupoNome: 'Carboidrato', field: 'carboidrato' })}
+          {renderGrupoOpcional({ titulo: 'Leguminosa',  grupoNome: 'Leguminosa',  field: 'leguminosa' })}
+          {renderGrupoOpcional({ titulo: 'Legumes', grupoNome: 'Legumes', grupoDbNome: 'Legume', field: 'legume' })}
 
-          {/* OBS de Legumes — aparece apenas quando "Mix variado de vegetais" está selecionado */}
-          {(() => {
-            if (!legume.ativo) return null;
-            const grpLegumes    = grupos.find((g) => g.nome === 'Legume');
-            const legVarAlim    = grpLegumes
-              ? alimentos.find((a) => a.grupoId === grpLegumes.id && a.nome === 'Mix variado de vegetais')
-              : null;
-            const legVarPreparos = legVarAlim?.preparos ?? [];
-            const temLegVariado  = legVarPreparos.some((p) => legume.preparos.has(p.id));
-            if (!temLegVariado) return null;
-            return (
-              <div className="card" style={{ marginBottom: 20, border: '2px solid #f59e0b', background: '#fffbeb' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-                  <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
-                    Observações importantes
-                  </span>
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ color: '#92400e' }}>
-                    Informe o mix de legumes e/ou quais legumes <strong>NÃO podem ir</strong> nos pratos deste cliente
-                  </label>
-                  <textarea
-                    className="form-control"
-                    value={obsLegumes}
-                    onChange={(e) => setObsLegumes(e.target.value)}
-                    placeholder="Ex: Mix de legumes (brócolis, cenoura, vagem). Sem chuchu, sem pimentão..."
-                    rows={3}
-                    style={{ borderColor: '#f59e0b', background: '#fff' }}
-                  />
-                  <small style={{ color: '#92400e', fontSize: '0.78rem' }}>
-                    Esta informação ficará destacada na ordem de produção para orientar a cozinha.
-                  </small>
-                </div>
-              </div>
-            );
-          })()}
+          {/* ── Obs Legumes ── */}
+          {renderObsLegumes()}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-              {saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Pedido'}
+              {saving
+                ? 'Salvando...'
+                : isEdit
+                  ? 'Salvar Alterações'
+                  : incluirJantar
+                    ? 'Criar Pedidos (Almoço + Jantar)'
+                    : 'Criar Pedido'}
             </button>
             <Link to={isEdit ? `/pedidos/${editId}` : '/pedidos'} className="btn btn-secondary">Cancelar</Link>
           </div>
