@@ -10,13 +10,14 @@ const proteinaItem = z.object({
 });
 
 const grupoAcompanhamento = z.object({
-  gramagem: z.coerce.number().positive('Gramagem deve ser positiva'),
-  preparos: z.array(z.string().min(1)).min(1, 'Informe ao menos um preparo'),
+  gramagem: z.coerce.number().min(0),
+  preparos: z.array(z.string()).default([]),
 }).optional().nullable();
 
 const criarPedido = z.object({
   body: z.object({
     clienteId:        z.string().min(1, 'clienteId é obrigatório'),
+    tipoRefeicao:     z.enum(['ALMOCO', 'JANTAR']).default('ALMOCO'),
     totalPratos:      z.coerce.number().int().min(5, 'Mínimo de 5 pratos'),
     maxRepeticoes:    z.coerce.number().int().positive('maxRepeticoes deve ser positivo'),
     minRepeticoesLote: z.coerce.number().int().positive().default(2),
@@ -27,7 +28,7 @@ const criarPedido = z.object({
     carboidratos:     grupoAcompanhamento,
     leguminosas:      grupoAcompanhamento,
     legumes:          grupoAcompanhamento,
-  }).refine(
+  }).passthrough().refine(
     data => {
       const soma = data.proteinas.reduce((s, p) => s + p.quantidadePratos, 0);
       return soma === data.totalPratos;
