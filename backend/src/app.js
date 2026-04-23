@@ -14,13 +14,14 @@ const app = express();
 // ── Segurança ────────────────────────────────────────────────────
 app.use(helmet());
 
-const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
-  .split(',')
-  .map(o => o.trim());
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+  : null; // null = aceita qualquer origem (dev ou quando não configurado)
 
 app.use(cors({
   origin(origin, cb) {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Sem lista configurada → aceita tudo (mesma origem ou dev)
+    if (!allowedOrigins || !origin || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('Origem não permitida pelo CORS'));
   },
   credentials: true,
