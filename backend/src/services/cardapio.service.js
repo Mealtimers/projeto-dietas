@@ -148,7 +148,7 @@ function montarOpcoesCarboidrato(itensPermitidos) {
   for (const item of itens) {
     const alimento   = item.preparo.alimento;
     const carbsItem  = alimento.carboidratosPor100g;
-    const gramagem   = carbsItem
+    const gramagem   = (carbsItem && carbsItem > 0)
       ? parseFloat((targetCarbs * 100 / carbsItem).toFixed(1))
       : gramagemRef;
 

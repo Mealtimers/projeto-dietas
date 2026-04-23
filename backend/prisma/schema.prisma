@@ -28,6 +28,8 @@ model AlimentoBase {
   proteinasPedido      PedidoProteina[]
   equivalenciasOrigem  EquivalenciaAlimento[]   @relation("EquivOrigem")
   equivalenciasDestino EquivalenciaAlimento[]   @relation("EquivDestino")
+
+  @@index([grupoId])
 }
 
 model PreparoAlimento {
@@ -41,6 +43,8 @@ model PreparoAlimento {
   createdAt       DateTime              @default(now())
   itensLote       ItemLote[]
   itensPermitidos PedidoItemPermitido[]
+
+  @@index([alimentoId])
 }
 
 model EquivalenciaAlimento {
@@ -67,6 +71,11 @@ model Cliente {
   pedidos     PedidoDieta[]
 }
 
+enum TipoRefeicao {
+  ALMOCO
+  JANTAR
+}
+
 enum StatusPedido {
   PENDENTE
   GERADO
@@ -82,6 +91,7 @@ model PedidoDieta {
   id                String                @id @default(cuid())
   clienteId         String
   cliente           Cliente               @relation(fields: [clienteId], references: [id])
+  tipoRefeicao      TipoRefeicao          @default(ALMOCO)
   totalPratos       Int
   maxRepeticoes     Int
   minRepeticoesLote Int                   @default(2)
@@ -97,6 +107,9 @@ model PedidoDieta {
   versoes           CardapioVersao[]
   aprovacao         AprovacaoCliente?
   ordemProducao     OrdemProducao?
+
+  @@index([clienteId])
+  @@index([status])
 }
 
 /// Distribuição de proteína — soma de quantidadePratos = totalPratos
@@ -111,6 +124,7 @@ model PedidoProteina {
   preparosIds      String[]     @default([]) // IDs dos preparos permitidos; vazio = todos os ativos
 
   @@unique([pedidoId, alimentoBaseId])
+  @@index([pedidoId])
 }
 
 /// Preparos selecionados para o cardápio — Carboidrato | Leguminosa | Legume
@@ -127,6 +141,7 @@ model PedidoItemPermitido {
   gramagemBase Float
 
   @@unique([pedidoId, preparoId])
+  @@index([pedidoId])
 }
 
 /// Versão/geração de cardápio — histórico preservado; apenas uma ativa por pedido
@@ -140,6 +155,7 @@ model CardapioVersao {
   lotes     LoteCardapio[]
 
   @@unique([pedidoId, numero])
+  @@index([pedidoId])
 }
 
 model LoteCardapio {
@@ -148,6 +164,8 @@ model LoteCardapio {
   versao     CardapioVersao @relation(fields: [versaoId], references: [id], onDelete: Cascade)
   quantidade Int
   itens      ItemLote[]
+
+  @@index([versaoId])
 }
 
 model ItemLote {
@@ -160,6 +178,9 @@ model ItemLote {
   grupoNome   String
   nomeManual  String?
   obs         String?
+
+  @@index([loteId])
+  @@index([preparoId])
 }
 
 enum StatusAprovacao {

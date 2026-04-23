@@ -268,8 +268,10 @@ export default function PedidoDetalhePage() {
         <h1>Pedido — {pedido.cliente?.nome}</h1>
         <div className="btn-group">
           <StatusBadge status={pedido.status} />
-          {!['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'].includes(pedido.status) && (
-            <Link to={`/pedidos/${id}/editar`} className="btn btn-secondary">Editar</Link>
+          {!['APROVADO', 'CONCLUIDO', 'CANCELADO'].includes(pedido.status) && (
+            <Link to={`/pedidos/${id}/editar`} className="btn btn-secondary">
+              {pedido.status === 'EM_PRODUCAO' ? '✏️ Editar (em produção)' : 'Editar'}
+            </Link>
           )}
           <Link to={`/pedidos/novo?repetirDe=${id}`} className="btn btn-ghost" title="Repetir este pedido">🔄 Repetir</Link>
           <Link to="/pedidos" className="btn btn-outline">Voltar</Link>
@@ -360,7 +362,7 @@ export default function PedidoDetalhePage() {
                 <span style={{ fontSize: '1.1rem' }}>⚠️</span>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
-                    OBS — Mix / Legumes proibidos
+                    Observações importantes
                   </div>
                   <div style={{ fontSize: '0.9rem', color: '#78350f' }}>{pedido.obsLegumes}</div>
                 </div>

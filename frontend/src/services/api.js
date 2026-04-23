@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { getToken, clearSession } from '../auth';
+import { getGlobalToast } from '../components/Toast';
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' });
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  timeout: 30000,
+});
 
 // Envia token JWT em toda requisição
 api.interceptors.request.use((config) => {
@@ -10,14 +14,35 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redireciona para login se sessão expirar
+// Tratamento centralizado de erros
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const toast = getGlobalToast();
+    const status = err.response?.status;
+    const data   = err.response?.data;
+
+    if (status === 401) {
       clearSession();
-      window.location.href = '/login';
+      // Dispara evento para o App redirecionar via router (sem hard reload)
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+      return Promise.reject(err);
     }
+
+    if (status === 429) {
+      toast?.warning(data?.error || 'Muitas requisições. Aguarde um momento.');
+    } else if (status === 400 && data?.fields) {
+      // Erros de validação Zod — mostra o primeiro campo
+      const firstField = data.fields[0];
+      toast?.error(firstField ? `${firstField.campo}: ${firstField.mensagem}` : data.error);
+    } else if (status >= 400 && status < 500) {
+      toast?.error(data?.error || 'Erro na requisição.');
+    } else if (status >= 500) {
+      toast?.error('Erro no servidor. Tente novamente.');
+    } else if (!err.response) {
+      toast?.error('Sem conexão com o servidor. Verifique sua internet.');
+    }
+
     return Promise.reject(err);
   }
 );
@@ -84,6 +109,8 @@ export const solicitacoesApi = {
   buscar:          (id)     => api.get(`/solicitacoes/${id}`),
   contagem:        ()       => api.get('/solicitacoes/contagem'),
   atualizarStatus: (id, data) => api.put(`/solicitacoes/${id}/status`, data),
+  deletar:         (id) => api.delete(`/solicitacoes/${id}`),
+  deletarVarias:   (ids) => api.delete('/solicitacoes', { data: { ids } }),
 };
 
 // API pública do portal (sem auth)

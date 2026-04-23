@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { solicitacoesApi } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -17,6 +18,9 @@ export default function SolicitacoesPage() {
   const [filtroStatus, setFiltroStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selecionados, setSelecionados] = useState(new Set());
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletando, setDeletando] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -26,7 +30,37 @@ export default function SolicitacoesPage() {
       .finally(() => setLoading(false));
   }, [filtroStatus]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); setSelecionados(new Set()); }, [load]);
+
+  const toggleSelecionado = (id) => {
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.size === solicitacoes.length) {
+      setSelecionados(new Set());
+    } else {
+      setSelecionados(new Set(solicitacoes.map(s => s.id)));
+    }
+  };
+
+  const handleDeletarSelecionados = async () => {
+    setDeletando(true);
+    try {
+      await solicitacoesApi.deletarVarias(Array.from(selecionados));
+      setSelecionados(new Set());
+      setShowDeleteModal(false);
+      load();
+    } catch {
+      setError('Erro ao excluir solicitações.');
+    } finally {
+      setDeletando(false);
+    }
+  };
 
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -55,8 +89,8 @@ export default function SolicitacoesPage() {
       <div className="page-content">
         {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-        {/* Filtros */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {/* Filtros e ações em massa */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           {STATUS_OPTIONS.map(opt => (
             <button
               key={opt.value}
@@ -66,6 +100,15 @@ export default function SolicitacoesPage() {
               {opt.label}
             </button>
           ))}
+          {selecionados.size > 0 && (
+            <button
+              className="btn btn-sm btn-danger"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => setShowDeleteModal(true)}
+            >
+              Excluir {selecionados.size} selecionada(s)
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -89,6 +132,14 @@ export default function SolicitacoesPage() {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        checked={solicitacoes.length > 0 && selecionados.size === solicitacoes.length}
+                        onChange={toggleTodos}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </th>
                     <th>Data</th>
                     <th>Cliente</th>
                     <th>Contato</th>
@@ -102,7 +153,15 @@ export default function SolicitacoesPage() {
                   {solicitacoes.map(sol => {
                     const proteinas = Array.isArray(sol.proteinas) ? sol.proteinas : [];
                     return (
-                      <tr key={sol.id}>
+                      <tr key={sol.id} style={{ background: selecionados.has(sol.id) ? 'var(--primary-bg)' : undefined }}>
+                        <td style={{ width: 36 }}>
+                          <input
+                            type="checkbox"
+                            checked={selecionados.has(sol.id)}
+                            onChange={() => toggleSelecionado(sol.id)}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        </td>
                         <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--gray-500)' }}>
                           {formatDate(sol.createdAt)}
                         </td>
@@ -156,6 +215,15 @@ export default function SolicitacoesPage() {
             </button>
           </div>
         </div>
+        <ConfirmModal
+          open={showDeleteModal}
+          title="Excluir solicitações"
+          message={`Tem certeza que deseja excluir ${selecionados.size} solicitação(ões)? Esta ação não pode ser desfeita.`}
+          confirmLabel={deletando ? 'Excluindo...' : 'Excluir'}
+          danger
+          onConfirm={handleDeletarSelecionados}
+          onCancel={() => setShowDeleteModal(false)}
+        />
       </div>
     </>
   );

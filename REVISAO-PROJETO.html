@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revisao Completa - Projeto Dietas Meal Time</title>
+<style>
+  :root {
+    --red: #dc2626;
+    --orange: #ea580c;
+    --yellow: #ca8a04;
+    --green: #16a34a;
+    --blue: #2563eb;
+    --gray: #64748b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-secondary: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  h2 { font-size: 22px; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 17px; margin: 20px 0 10px; }
+  p { margin-bottom: 12px; }
+  .subtitle { color: var(--text-secondary); font-size: 15px; margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; color: white; }
+  .badge-blocker { background: var(--red); }
+  .badge-high { background: var(--orange); }
+  .badge-medium { background: var(--yellow); color: var(--text); }
+  .badge-low { background: var(--blue); }
+  .badge-ok { background: var(--green); }
+  .badge-info { background: var(--gray); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; background: #f1f5f9; color: var(--text-secondary); margin-right: 4px; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; }
+  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .summary-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+  .summary-number { font-size: 32px; font-weight: 700; }
+  .summary-label { font-size: 13px; color: var(--text-secondary); }
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 6px 0; display: flex; align-items: flex-start; gap: 8px; }
+  .checklist li::before { content: ''; display: inline-block; width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; margin-top: 3px; }
+  .check-ok::before { background: var(--green); content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .check-fail::before { background: var(--red); content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E"); display: flex; align-items: center; justify-content: center; }
+  .check-warn::before { background: var(--yellow); content: '!'; color: white; font-weight: bold; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+  th { background: #f8fafc; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+  .file-ref { color: var(--blue); font-size: 13px; }
+  .section-icon { font-size: 20px; }
+  .priority-label { font-weight: 600; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 32px; }
+  .toc a { color: var(--blue); text-decoration: none; display: block; padding: 4px 0; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>Revisao Completa do Projeto Dietas</h1>
+<p class="subtitle">Meal Time &mdash; Sistema de Gestao de Dietas e Producao &bull; Revisao em 21/04/2026</p>
+
+<div class="summary-grid">
+  <div class="summary-item">
+    <div class="summary-number" style="color: var(--red);">4</div>
+    <div class="summary-label">Bloqueantes</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-number" style="color: var(--orange);">6</div>
+    <div class="summary-label">Alta Prioridade</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-number" style="color: var(--yellow);">7</div>
+    <div class="summary-label">Media Prioridade</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-number" style="color: var(--green);">5</div>
+    <div class="summary-label">Pontos Positivos</div>
+  </div>
+</div>
+
+<nav class="toc">
+  <strong>Indice</strong>
+  <a href="#sec1">1. Visao Geral da Arquitetura</a>
+  <a href="#sec2">2. Code Review &mdash; Checklist 7 Dimensoes</a>
+  <a href="#sec3">3. Bugs Potenciais &mdash; Debugging Sistematico</a>
+  <a href="#sec4">4. Recomendacoes de Engenharia</a>
+  <a href="#sec5">5. Plano de Acao Priorizado</a>
+</nav>
+
+<!-- ================================================================== -->
+<h2 id="sec1">1. Visao Geral da Arquitetura</h2>
+
+<div class="card">
+  <p><strong>Stack:</strong> Node.js + Express + Prisma (PostgreSQL) | React 18 + Vite + React Router v6</p>
+  <p><strong>Autenticacao:</strong> JWT com usuario/senha unico via .env (ADMIN_USER / ADMIN_PASS)</p>
+  <p><strong>Estrutura:</strong> MVC classico &mdash; routes &rarr; controllers &rarr; services &rarr; Prisma ORM</p>
+  <p><strong>Entidades:</strong> 12 models Prisma, 9 controllers, 11 arquivos de rota, 2 services de dominio</p>
+  <p><strong>Fluxo de negocio:</strong> Cliente &rarr; Base Alimentar &rarr; Pedido &rarr; Gerar Cardapio &rarr; Aprovacao &rarr; Ordem de Producao</p>
+</div>
+
+<h3>Pontos Positivos</h3>
+<ul class="checklist">
+  <li class="check-ok">Separacao clara entre camadas (routes / controllers / services)</li>
+  <li class="check-ok">Uso correto de transactions Prisma em operacoes criticas (criar/atualizar pedido, persistir versao)</li>
+  <li class="check-ok">Estado de pedido bem modelado com enum e maquina de transicoes explicita (<code>TRANSICOES</code>)</li>
+  <li class="check-ok">Error handler centralizado com tratamento especifico de erros Prisma</li>
+  <li class="check-ok">Singleton do PrismaClient com cache global em dev (evita connection leak com hot reload)</li>
+</ul>
+
+<!-- ================================================================== -->
+<h2 id="sec2">2. Code Review &mdash; Checklist 7 Dimensoes</h2>
+
+<!-- SEGURANCA -->
+<h3>2.1 Seguranca</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-blocker">BLOQUEANTE</span>
+    <span class="priority-label">Sem rate limiting em nenhum endpoint</span>
+  </div>
+  <span class="tag">Seguranca</span> <span class="tag">auth.routes.js</span> <span class="tag">portal.routes.js</span>
+  <p>O endpoint <code>POST /api/auth/login</code> e a rota publica <code>POST /api/portal/solicitar</code> nao possuem rate limiting. Um atacante pode executar brute force no login ou flood de solicitacoes no portal publico sem nenhum limite.</p>
+  <p><strong>Impacto:</strong> Comprometimento de credenciais via brute force; DDoS no portal publico; spam de solicitacoes falsas.</p>
+  <p><strong>Correcao:</strong></p>
+<pre><code>// npm install express-rate-limit
+const rateLimit = require('express-rate-limit');
+
+// Login: max 5 tentativas a cada 15 min
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' }
+});
+app.use('/api/auth/login', loginLimiter);
+
+// Portal publico: max 10 solicitacoes/hora por IP
+const portalLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: 'Limite de solicitacoes atingido.' }
+});
+app.use('/api/portal/solicitar', portalLimiter);</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-blocker">BLOQUEANTE</span>
+    <span class="priority-label">Ausencia total de headers de seguranca (Helmet)</span>
+  </div>
+  <span class="tag">Seguranca</span> <span class="tag">app.js</span>
+  <p>O servidor Express nao usa <code>helmet</code>. Isso expoe o app a ataques XSS, clickjacking, MIME sniffing, e vaza a assinatura <code>X-Powered-By: Express</code> em todo response.</p>
+  <p><strong>Correcao:</strong></p>
+<pre><code>// npm install helmet
+const helmet = require('helmet');
+app.use(helmet());</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-blocker">BLOQUEANTE</span>
+    <span class="priority-label">CORS totalmente aberto</span>
+  </div>
+  <span class="tag">Seguranca</span> <span class="tag">app.js</span>
+  <p><code>app.use(cors())</code> sem nenhuma config aceita requests de QUALQUER origem. Em producao, qualquer site malicioso pode fazer requests autenticados se o usuario tiver um token valido.</p>
+<pre><code>app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-blocker">BLOQUEANTE</span>
+    <span class="priority-label">Autenticacao com credencial unica hardcoded em .env</span>
+  </div>
+  <span class="tag">Seguranca</span> <span class="tag">auth.routes.js</span>
+  <p>O sistema usa um unico usuario/senha definido em variaveis de ambiente (<code>ADMIN_USER</code> / <code>ADMIN_PASS</code>). Nao ha hashing de senha &mdash; a comparacao e direta em texto plano. Se alguem tiver acesso ao .env (deploy leak, log acidental), tem acesso total.</p>
+  <p><strong>Para o momento (MVP):</strong> Aceitavel se: (a) o .env nao esta commitado, (b) a senha e forte, (c) ha rate limiting no login. Mas para producao seria necessario um model <code>User</code> com bcrypt.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Vazamento de detalhes de erro em producao</span>
+  </div>
+  <span class="tag">Seguranca</span> <span class="tag">errorHandler.js</span>
+  <p>O <code>PrismaClientValidationError</code> retorna <code>err.message</code> completo ao cliente, que pode conter nomes de campos, tipos e detalhes internos do schema. Em producao, isso vaza informacoes do banco.</p>
+<pre><code>if (err.name === 'PrismaClientValidationError') {
+  return res.status(400).json({
+    error: 'Dados invalidos fornecidos.',
+    // NAO retornar err.message em producao
+    ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+  });
+}</code></pre>
+</div>
+
+<!-- PERFORMANCE -->
+<h3>2.2 Performance</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Listagens sem paginacao</span>
+  </div>
+  <span class="tag">Performance</span> <span class="tag">Todos controllers</span>
+  <p>Todos os endpoints <code>GET /</code> (listar) fazem <code>findMany()</code> sem <code>take</code>/<code>skip</code>. Com 500+ clientes, 1000+ pedidos, ou 5000+ preparos, a resposta vai crescer indefinidamente, causando lentidao e potencialmente timeout.</p>
+  <p><strong>Prioridade:</strong> <code>pedidos.listar</code> e o mais critico &mdash; inclui joins com cliente, aprovacao, ordemProducao e count de versoes.</p>
+<pre><code>const listar = async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      prisma.pedidoDieta.findMany({
+        skip, take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { /* ... */ },
+      }),
+      prisma.pedidoDieta.count(),
+    ]);
+    res.json({ data, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (err) { next(err); }
+};</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Deep include sem selecao de campos em pedidos.buscarPorId</span>
+  </div>
+  <span class="tag">Performance</span> <span class="tag">pedidos.controller.js</span>
+  <p>A funcao <code>includeDetalhe()</code> faz 6 niveis de include aninhado (pedido &rarr; versoes &rarr; lotes &rarr; itens &rarr; preparo &rarr; alimento &rarr; grupo). Para pedidos com muitas versoes e lotes, isso pode gerar queries N+1 implicitas e payloads enormes.</p>
+  <p><strong>Sugestao:</strong> Adicionar <code>select</code> nos niveis mais profundos e considerar carregar versoes sob demanda (lazy load via endpoint separado).</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Loop sequencial em gerarOrdem (N queries para itens)</span>
+  </div>
+  <span class="tag">Performance</span> <span class="tag">ordemProducao.service.js</span>
+  <p>A <code>gerarOrdem</code> ja usa um unico query com includes, o que e bom. Porem, o <code>create</code> da ordem e o <code>update</code> do pedido sao duas operacoes separadas sem transaction &mdash; se o update falhar, a ordem fica criada mas o pedido nao muda de status.</p>
+</div>
+
+<!-- FUNCIONALIDADE -->
+<h3>2.3 Funcionalidade e Edge Cases</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Race condition: gerarOrdem sem transaction</span>
+  </div>
+  <span class="tag">Bug Potencial</span> <span class="tag">ordemProducao.service.js</span>
+  <p>A funcao <code>gerarOrdem()</code> faz <code>prisma.ordemProducao.create()</code> e depois <code>prisma.pedidoDieta.update()</code> em dois comandos separados. Se o segundo falha, a ordem fica criada mas o pedido nao vai para <code>EM_PRODUCAO</code>.</p>
+  <p>Alem disso, o controller <code>ordens.gerar()</code> verifica se ja existe ordem ANTES de chamar o service, mas dois requests simultaneos podem passar na checagem ao mesmo tempo (race condition).</p>
+<pre><code>// Correcao: wrapping em transaction
+async function gerarOrdem(pedidoId) {
+  return prisma.$transaction(async (tx) => {
+    // Lock: tenta criar a ordem (unique constraint protege contra duplicata)
+    const ordem = await tx.ordemProducao.create({
+      data: { pedidoId, itensConsolidados },
+    });
+    await tx.pedidoDieta.update({
+      where: { id: pedidoId },
+      data: { status: 'EM_PRODUCAO' },
+    });
+    return ordem;
+  });
+}</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Race condition: atualizarStatus sem lock otimista</span>
+  </div>
+  <span class="tag">Bug Potencial</span> <span class="tag">ordens.controller.js</span>
+  <p>Em <code>ordens.atualizarStatus()</code>, o update do status da ordem e o update do pedido sao operacoes separadas. Se dois usuarios clicarem "Concluir" ao mesmo tempo, ambos podem passar na verificacao.</p>
+  <p><strong>Sugestao:</strong> Usar <code>$transaction</code> e idealmente lock otimista com <code>updatedAt</code>.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Delete de cliente nao verifica dependencias</span>
+  </div>
+  <span class="tag">Bug Potencial</span> <span class="tag">clientes.controller.js</span>
+  <p>O endpoint <code>DELETE /api/clientes/:id</code> faz <code>prisma.cliente.delete()</code> diretamente. Se o cliente tem pedidos, o Prisma vai lancar um erro de foreign key (P2003) que nao e tratado no errorHandler &mdash; o usuario recebe erro generico 500.</p>
+  <p><strong>Correcao:</strong> Verificar pedidos antes de deletar ou adicionar tratamento de P2003.</p>
+<pre><code>// No errorHandler.js, adicionar:
+if (err.code === 'P2003') {
+  return res.status(409).json({
+    error: 'Nao e possivel excluir: existem registros dependentes.',
+    details: err.meta,
+  });
+}</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Cardapio pode entrar em loop infinito com combinacoes insuficientes</span>
+  </div>
+  <span class="tag">Bug Potencial</span> <span class="tag">cardapio.service.js:85</span>
+  <p>O loop <code>for (let t = 0; combos.length &lt; N && t &lt; N * 2000; t++)</code> tem um limite de iteracoes, o que e bom. Porem, se nao conseguir gerar combos unicos suficientes, o fallback na linha 110 (<code>while (combos.length &lt; N) combos.push(combos[(combos.length - 1) % ...])</code>) pode ter <code>combos.length === 0</code>, causando divisao por zero em <code>Math.max(combos.length, 1)</code> e duplicando <code>undefined</code>.</p>
+  <p><strong>Na pratica:</strong> Se <code>preparos.length === 0</code>, ja retorna <code>[]</code> antes. Mas se <code>nCarb === 0 && nLeg === 0 && nVeg === 0</code> e <code>nProt > 0</code>, combos vao ter chaves duplicadas e podem nao gerar combos unicos suficientes.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Inconsistencia de grupoNome: "Legumes" vs "Legume"</span>
+  </div>
+  <span class="tag">Bug Potencial</span> <span class="tag">cardapio.service.js / pedidos.controller.js</span>
+  <p>No controller de pedidos, o grupo e definido como <code>'Legumes'</code> (plural). No service de cardapio, a funcao <code>montarOpcoesSimples</code> tambem filtra por <code>'Legumes'</code>. Mas no schema Prisma e docs, aparece como "Legume" em singular (<code>legume</code> no <code>SolicitacaoOrcamento</code>). Qualquer inconsistencia vai fazer o filtro nao encontrar itens.</p>
+</div>
+
+<!-- LEGIBILIDADE -->
+<h3>2.4 Legibilidade</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-ok">BOM</span>
+    <span class="priority-label">Codigo bem organizado e consistente</span>
+  </div>
+  <p>A estrutura MVC esta limpa, os nomes de funcoes sao descritivos em portugues (coerente com o dominio), e o service de cardapio tem comentarios claros explicando o algoritmo TACO. O padrao try/catch/next e consistente em todos controllers.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-low">BAIXA</span>
+    <span class="priority-label">Constantes magicas no algoritmo de cardapio</span>
+  </div>
+  <span class="tag">Legibilidade</span> <span class="tag">cardapio.service.js:79</span>
+  <p><code>PRIMO_A = 37, PRIMO_B = 53</code> e <code>N * 2000</code> sao constantes magicas sem explicacao do por que esses valores foram escolhidos. Um comentario breve ajudaria a manutencao futura.</p>
+</div>
+
+<!-- TESTES -->
+<h3>2.5 Testes</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-high">ALTA</span>
+    <span class="priority-label">Zero testes automatizados</span>
+  </div>
+  <span class="tag">Testes</span> <span class="tag">Projeto inteiro</span>
+  <p>O projeto nao possui nenhum teste unitario, de integracao ou e2e. Nao ha framework de teste configurado (jest, vitest, mocha). Isso significa que qualquer alteracao no algoritmo de cardapio, transicoes de status ou logica de negocio pode quebrar silenciosamente.</p>
+  <p><strong>Prioridade de testes sugerida:</strong></p>
+  <table>
+    <tr><th>Arquivo</th><th>O que testar</th><th>Por que</th></tr>
+    <tr><td><code>cardapio.service.js</code></td><td>Geracao, diversificacao, limites, edge cases</td><td>Core do negocio, logica complexa</td></tr>
+    <tr><td><code>ordemProducao.service.js</code></td><td>Consolidacao correta de itens</td><td>Impacta producao real</td></tr>
+    <tr><td><code>pedidos.controller.js</code></td><td>Transicoes de status, validacoes</td><td>Maquina de estados complexa</td></tr>
+    <tr><td><code>errorHandler.js</code></td><td>Tratamento correto de cada tipo de erro</td><td>Protege contra vazamentos</td></tr>
+  </table>
+</div>
+
+<!-- ARQUITETURA -->
+<h3>2.6 Arquitetura</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Logica de negocio espalhada nos controllers</span>
+  </div>
+  <span class="tag">Arquitetura</span>
+  <p>As regras de transicao de status, validacoes de negocio e operacoes compostas estao nos controllers (<code>pedidos.controller.js</code>, <code>ordens.controller.js</code>, <code>aprovacoes.controller.js</code>). Idealmente, cada dominio teria um service dedicado (PedidoService, AprovacaoService) com toda logica de negocio, e o controller apenas faria parse do request e chamaria o service.</p>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">Sem validacao de input estruturada</span>
+  </div>
+  <span class="tag">Arquitetura</span>
+  <p>A validacao de input e feita manualmente em cada controller com <code>if (!campo)</code>. Isso e propenso a esquecimentos e nao valida tipos/formatos. Uma lib como <code>zod</code> ou <code>joi</code> centralizaria isso.</p>
+<pre><code>// Exemplo com Zod
+const { z } = require('zod');
+
+const criarPedidoSchema = z.object({
+  clienteId:     z.string().cuid(),
+  totalPratos:   z.number().int().min(5),
+  maxRepeticoes: z.number().int().min(1),
+  proteinas:     z.array(z.object({
+    alimentoBaseId:   z.string().cuid(),
+    gramagem:         z.number().positive(),
+    quantidadePratos: z.number().int().positive(),
+  })).min(1),
+});</code></pre>
+</div>
+
+<!-- ERROR HANDLING -->
+<h3>2.7 Error Handling</h3>
+
+<div class="card">
+  <div class="card-header">
+    <span class="badge badge-medium">MEDIA</span>
+    <span class="priority-label">console.error sem estrutura (nao e pesquisavel em logs)</span>
+  </div>
+  <span class="tag">Error Handling</span> <span class="tag">errorHandler.js</span>
+  <p>O error handler faz <code>console.error('Error:', err)</code> que loga o objeto inteiro. Em producao, isso nao e pesquisavel, nao tem correlation ID, e mistura erros 400 (user error) com erros 500 (server error). Considere usar um logger estruturado como <code>pino</code> ou <code>winston</code>.</p>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="sec3">3. Bugs Potenciais &mdash; Debugging Sistematico</h2>
+
+<p>Aplicando o framework de hipoteses para bugs latentes no sistema:</p>
+
+<div class="card">
+  <h3>Bug #1: Ordem de Producao duplicada (Race Condition)</h3>
+  <table>
+    <tr><th>Campo</th><th>Detalhe</th></tr>
+    <tr><td><strong>Hipotese</strong></td><td>Dois cliques rapidos no botao "Gerar Ordem" podem criar duas ordens para o mesmo pedido</td></tr>
+    <tr><td><strong>Camada</strong></td><td>Controller &rarr; Service (backend)</td></tr>
+    <tr><td><strong>Causa raiz</strong></td><td>Checagem de existencia e criacao nao sao atomicas. O controller verifica <code>findUnique</code> e depois chama o service. Dois requests podem passar pela checagem simultaneamente.</td></tr>
+    <tr><td><strong>Probabilidade</strong></td><td>80% em uso real (botao sem debounce + rede lenta)</td></tr>
+    <tr><td><strong>Como testar</strong></td><td>Enviar 2 requests POST simultaneos para <code>/api/ordens-producao/:pedidoId</code></td></tr>
+    <tr><td><strong>Protecao atual</strong></td><td>Constraint <code>@unique</code> no <code>pedidoId</code> vai lancar P2002 no segundo request &mdash; cai no error handler como "registro duplicado" (409). O frontend pode nao tratar esse caso graciosamente.</td></tr>
+    <tr><td><strong>Correcao</strong></td><td>Usar transaction + tratar P2002 no controller como resposta amigavel</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Bug #2: Cardapio gerado com pratos identicos</h3>
+  <table>
+    <tr><th>Campo</th><th>Detalhe</th></tr>
+    <tr><td><strong>Hipotese</strong></td><td>Quando ha poucas opcoes de carboidrato/leguminosa/legume, o algoritmo gera lotes com combinacoes identicas</td></tr>
+    <tr><td><strong>Camada</strong></td><td>Service (cardapio.service.js)</td></tr>
+    <tr><td><strong>Causa raiz</strong></td><td>O fallback na linha 110 duplica combos quando nao consegue gerar combinacoes unicas suficientes. Se <code>nProt=1, nCarb=1, nLeg=1, nVeg=1</code>, so existe 1 combo possivel &mdash; todos os lotes terao o mesmo prato.</td></tr>
+    <tr><td><strong>Probabilidade</strong></td><td>60% para pedidos com poucas opcoes selecionadas</td></tr>
+    <tr><td><strong>Como testar</strong></td><td>Criar pedido com 10 pratos, 1 proteina, 1 carboidrato, 1 leguminosa, 1 legume, maxRepeticoes=2</td></tr>
+    <tr><td><strong>Impacto</strong></td><td>Cliente recebe cardapio monotono, recusa a aprovacao</td></tr>
+    <tr><td><strong>Correcao</strong></td><td>Adicionar warning quando diversidade e insuficiente para os parametros do pedido</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Bug #3: Delete em cascata pode destruir dados em producao</h3>
+  <table>
+    <tr><th>Campo</th><th>Detalhe</th></tr>
+    <tr><td><strong>Hipotese</strong></td><td>Deletar um <code>AlimentoBase</code> apaga todos seus preparos (<code>onDelete: Cascade</code>), que podem estar referenciados em <code>ItemLote</code> de pedidos ativos</td></tr>
+    <tr><td><strong>Camada</strong></td><td>Schema Prisma + Controller</td></tr>
+    <tr><td><strong>Causa raiz</strong></td><td><code>AlimentoBase &rarr; PreparoAlimento</code> tem <code>onDelete: Cascade</code>, mas <code>ItemLote</code> referencia <code>PreparoAlimento</code> sem cascade. Deletar o alimento vai falhar com P2003 se houver itens de lote referenciando o preparo &mdash; mas a mensagem de erro nao e clara.</td></tr>
+    <tr><td><strong>Probabilidade</strong></td><td>40% em uso normal</td></tr>
+    <tr><td><strong>Correcao</strong></td><td>Preferir soft-delete (campo <code>ativo: false</code>) ao inves de hard delete para alimentos e preparos que ja estao em uso</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Bug #4: Pedido editado apos cardapio gerado perde a versao</h3>
+  <table>
+    <tr><th>Campo</th><th>Detalhe</th></tr>
+    <tr><td><strong>Hipotese</strong></td><td>Ao editar um pedido com status GERADO, o controller reseta para PENDENTE e deleta proteinas/itens permitidos, mas NAO deleta as versoes de cardapio ja geradas. As versoes antigas ficam orfas com dados incompativeis.</td></tr>
+    <tr><td><strong>Camada</strong></td><td>Controller (pedidos.controller.js:216-258)</td></tr>
+    <tr><td><strong>Causa raiz</strong></td><td>O <code>atualizar()</code> deleta e recria proteinas e itensPermitidos, mas nao toca em <code>CardapioVersao</code>. As versoes antigas referenciam preparos que podem nao fazer mais parte do pedido.</td></tr>
+    <tr><td><strong>Probabilidade</strong></td><td>70% &mdash; workflow muito comum (gerar, ajustar, re-gerar)</td></tr>
+    <tr><td><strong>Correcao</strong></td><td>No <code>atualizar()</code>, desativar versoes anteriores ou deletar completamente quando o pedido e re-configurado</td></tr>
+  </table>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="sec4">4. Recomendacoes de Engenharia</h2>
+
+<div class="card">
+  <h3>4.1 Seguranca Imediata (faça hoje)</h3>
+<pre><code>npm install helmet express-rate-limit
+
+// app.js - adicionar ANTES das rotas:
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+}));
+
+// Rate limit global: 100 req/min
+app.use('/api', rateLimit({ windowMs: 60000, max: 100 }));
+
+// Rate limit no login: 5 tentativas em 15 min
+app.use('/api/auth/login', rateLimit({
+  windowMs: 15 * 60 * 1000, max: 5,
+  message: { error: 'Muitas tentativas. Aguarde 15 minutos.' }
+}));</code></pre>
+</div>
+
+<div class="card">
+  <h3>4.2 Corrigir race condition em gerarOrdem</h3>
+<pre><code>// ordemProducao.service.js - wrapping completo em transaction
+async function gerarOrdem(pedidoId) {
+  return prisma.$transaction(async (tx) => {
+    const versaoAtiva = await tx.cardapioVersao.findFirst({
+      where: { pedidoId, ativo: true },
+      include: { lotes: { include: { itens: { include: { preparo: {
+        include: { alimento: { include: { grupo: true } } }
+      }}}}}},
+      orderBy: { numero: 'desc' },
+    });
+
+    if (!versaoAtiva || versaoAtiva.lotes.length === 0)
+      throw new Error('Nenhuma versao de cardapio ativa encontrada.');
+
+    // ... (logica de consolidacao existente) ...
+
+    const ordem = await tx.ordemProducao.create({
+      data: { pedidoId, itensConsolidados },
+    });
+    await tx.pedidoDieta.update({
+      where: { id: pedidoId },
+      data: { status: 'EM_PRODUCAO' },
+    });
+    return ordem;
+  });
+}</code></pre>
+</div>
+
+<div class="card">
+  <h3>4.3 Adicionar tratamento de P2003 no errorHandler</h3>
+<pre><code>// errorHandler.js - adicionar apos P2025:
+if (err.code === 'P2003') {
+  return res.status(409).json({
+    error: 'Nao e possivel excluir: existem registros dependentes.',
+    details: err.meta,
+  });
+}</code></pre>
+</div>
+
+<div class="card">
+  <h3>4.4 Setup de testes (esqueleto inicial)</h3>
+<pre><code>// npm install -D jest @types/jest
+// package.json: "scripts": { "test": "jest --runInBand" }
+
+// __tests__/cardapio.service.test.js
+const { gerarCardapio } = require('../src/services/cardapio.service');
+
+describe('Cardapio Service', () => {
+  test('deve gerar lotes para pedido valido', async () => {
+    // Setup: criar pedido de teste via Prisma
+    const resultado = await gerarCardapio(pedidoId);
+    expect(resultado.totalLotes).toBeGreaterThan(0);
+    expect(resultado.versaoNumero).toBe(1);
+  });
+
+  test('deve respeitar maxRepeticoes', async () => { /* ... */ });
+  test('deve rejeitar pedido sem proteinas', async () => { /* ... */ });
+  test('deve calcular gramagem TACO para carboidratos', async () => { /* ... */ });
+});</code></pre>
+</div>
+
+<div class="card">
+  <h3>4.5 Limpar versoes orfas ao editar pedido</h3>
+<pre><code>// pedidos.controller.js - dentro do $transaction do atualizar():
+// Apos deletar proteinas e itens permitidos:
+await tx.cardapioVersao.updateMany({
+  where: { pedidoId: id, ativo: true },
+  data: { ativo: false },
+});</code></pre>
+</div>
+
+<!-- ================================================================== -->
+<h2 id="sec5">5. Plano de Acao Priorizado</h2>
+
+<table>
+  <tr>
+    <th>#</th>
+    <th>Acao</th>
+    <th>Prioridade</th>
+    <th>Esforco</th>
+    <th>Arquivo(s)</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td>Instalar helmet + rate limiting</td>
+    <td><span class="badge badge-blocker">BLOQUEANTE</span></td>
+    <td>15 min</td>
+    <td>app.js, package.json</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>Configurar CORS com origin especifica</td>
+    <td><span class="badge badge-blocker">BLOQUEANTE</span></td>
+    <td>5 min</td>
+    <td>app.js</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>Wrapping de gerarOrdem em transaction</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>20 min</td>
+    <td>ordemProducao.service.js</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>Tratar P2003 no error handler</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>5 min</td>
+    <td>errorHandler.js</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>Esconder detalhes de erro em producao</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>10 min</td>
+    <td>errorHandler.js</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>Desativar versoes ao editar pedido</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>10 min</td>
+    <td>pedidos.controller.js</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>Adicionar paginacao nos endpoints de listagem</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>1-2h</td>
+    <td>Todos controllers + frontend</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>Transaction no atualizarStatus de ordens</td>
+    <td><span class="badge badge-high">ALTA</span></td>
+    <td>15 min</td>
+    <td>ordens.controller.js</td>
+  </tr>
+  <tr>
+    <td>9</td>
+    <td>Validacao com Zod/Joi</td>
+    <td><span class="badge badge-medium">MEDIA</span></td>
+    <td>3-4h</td>
+    <td>Novo middleware + todos controllers</td>
+  </tr>
+  <tr>
+    <td>10</td>
+    <td>Logger estruturado (pino)</td>
+    <td><span class="badge badge-medium">MEDIA</span></td>
+    <td>1-2h</td>
+    <td>app.js, errorHandler.js</td>
+  </tr>
+  <tr>
+    <td>11</td>
+    <td>Extrair services para cada dominio</td>
+    <td><span class="badge badge-medium">MEDIA</span></td>
+    <td>4-6h</td>
+    <td>Refactor controllers &rarr; services</td>
+  </tr>
+  <tr>
+    <td>12</td>
+    <td>Setup de testes automatizados</td>
+    <td><span class="badge badge-medium">MEDIA</span></td>
+    <td>4-8h</td>
+    <td>Novo: jest config, primeiros testes</td>
+  </tr>
+  <tr>
+    <td>13</td>
+    <td>Warning de diversidade insuficiente no cardapio</td>
+    <td><span class="badge badge-low">BAIXA</span></td>
+    <td>30 min</td>
+    <td>cardapio.service.js</td>
+  </tr>
+  <tr>
+    <td>14</td>
+    <td>Documentar constantes magicas</td>
+    <td><span class="badge badge-low">BAIXA</span></td>
+    <td>10 min</td>
+    <td>cardapio.service.js</td>
+  </tr>
+</table>
+
+<div class="divider"></div>
+
+<p style="text-align: center; color: var(--text-secondary); font-size: 13px;">
+  Revisao gerada em 21/04/2026 &bull; Stack: Node.js/Express/Prisma + React 18/Vite &bull; 14 itens de acao identificados
+</p>
+
+</body>
+</html>

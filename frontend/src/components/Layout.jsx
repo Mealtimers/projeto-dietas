@@ -64,11 +64,7 @@ export default function Layout() {
             <span className="nav-icon">📥</span>
             Solicitações
             {solicitacoesPendentes > 0 && (
-              <span style={{
-                marginLeft: 'auto', background: '#ef4444', color: '#fff',
-                borderRadius: 10, fontSize: '0.68rem', fontWeight: 700,
-                padding: '1px 7px', minWidth: 18, textAlign: 'center',
-              }}>
+              <span className="sidebar-badge">
                 {solicitacoesPendentes}
               </span>
             )}
@@ -76,28 +72,11 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>
-            👤 {usuario || 'admin'}
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%', padding: '7px 12px',
-              background: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 8, color: 'rgba(255,255,255,0.7)',
-              fontSize: '0.78rem', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 6, transition: 'background 0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-          >
+          <div className="sidebar-user">👤 {usuario || 'admin'}</div>
+          <button onClick={handleLogout} className="sidebar-logout-btn">
             🚪 Sair
           </button>
-          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: 8, textAlign: 'center' }}>
-            v1.0 · Meal Time © 2025
-          </div>
+          <div className="sidebar-version">v1.0 · Meal Time © 2025</div>
         </div>
       </aside>
 
@@ -123,12 +102,7 @@ export default function Layout() {
           <span className="bottom-nav-icon" style={{ position: 'relative', display: 'inline-block' }}>
             📥
             {solicitacoesPendentes > 0 && (
-              <span style={{
-                position: 'absolute', top: -4, right: -6,
-                background: '#ef4444', color: '#fff',
-                borderRadius: '50%', fontSize: '0.6rem', fontWeight: 700,
-                width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{solicitacoesPendentes}</span>
+              <span className="bottom-nav-badge">{solicitacoesPendentes}</span>
             )}
           </span>
           <span className="bottom-nav-label">Solicitações</span>

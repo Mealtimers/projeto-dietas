@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { pedidosApi, clientesApi, alimentosApi, gruposApi, solicitacoesApi } from '../../services/api';
 
-const STATUS_BLOQUEADO = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
+const STATUS_BLOQUEADO = ['APROVADO', 'CONCLUIDO', 'CANCELADO'];
 
 export default function PedidoFormPage() {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ export default function PedidoFormPage() {
   const [maxRepeticoes, setMaxRepeticoes]         = useState(3);
   const [minRepeticoesLote, setMinRepeticoesLote] = useState(2);
   const [observacoes, setObservacoes]             = useState('');
+  const [tipoRefeicao, setTipoRefeicao]         = useState('ALMOCO');
 
   const [proteinas, setProteinas] = useState([
     { alimentoBaseId: '', gramagem: '', quantidadePratos: '', preparosIds: new Set() },
@@ -42,6 +43,7 @@ export default function PedidoFormPage() {
   // Pre-fill state from a loaded pedido (edit or repeat)
   const initFromPedido = (pedido) => {
     setClienteId(pedido.clienteId);
+    setTipoRefeicao(pedido.tipoRefeicao || 'ALMOCO');
     setMaxRepeticoes(pedido.maxRepeticoes);
     setMinRepeticoesLote(pedido.minRepeticoesLote);
     setObservacoes(pedido.observacoes || '');
@@ -227,6 +229,7 @@ export default function PedidoFormPage() {
         : { gramagem: 0, preparos: [] };
 
     const payload = {
+      tipoRefeicao,
       totalPratos,
       maxRepeticoes:     parseInt(maxRepeticoes),
       minRepeticoesLote: parseInt(minRepeticoesLote),
@@ -450,6 +453,31 @@ export default function PedidoFormPage() {
 
         <form onSubmit={handleSubmit}>
 
+          {/* ── Tipo de Refeição (abas) ── */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 20 }}>
+            {[
+              { key: 'ALMOCO', label: '🍽️ Almoço', desc: 'Configurar pedido de almoço' },
+              { key: 'JANTAR', label: '🌙 Jantar', desc: 'Configurar pedido de jantar' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTipoRefeicao(key)}
+                style={{
+                  flex: 1, padding: '14px 20px',
+                  background: tipoRefeicao === key ? 'var(--primary)' : '#fff',
+                  color: tipoRefeicao === key ? '#fff' : 'var(--gray-600)',
+                  border: `2px solid ${tipoRefeicao === key ? 'var(--primary)' : 'var(--gray-200)'}`,
+                  borderRadius: key === 'ALMOCO' ? '10px 0 0 10px' : '0 10px 10px 0',
+                  fontSize: '1rem', fontWeight: 700, cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* ── Cliente e Configurações ── */}
           <div className="card" style={{ marginBottom: 20 }}>
             <div className="card-title">Cliente e Configurações</div>
@@ -602,7 +630,7 @@ export default function PedidoFormPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <span style={{ fontSize: '1.2rem' }}>⚠️</span>
                   <span className="card-title" style={{ margin: 0, border: 'none', padding: 0, color: '#92400e' }}>
-                    OBS — Mix / Legumes proibidos neste pedido
+                    Observações importantes
                   </span>
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>

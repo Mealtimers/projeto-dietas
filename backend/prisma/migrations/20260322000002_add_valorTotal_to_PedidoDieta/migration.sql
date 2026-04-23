@@ -1,1 +1,0 @@
-ALTER TABLE "PedidoDieta" ADD COLUMN "valorTotal" DOUBLE PRECISION;

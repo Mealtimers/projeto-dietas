@@ -22,6 +22,8 @@ const STATUS_LABELS = {
   EM_ORCAMENTO:      'Em Orçamento',
   ORCAMENTO_ENVIADO: 'Orçamento Enviado',
   // Tipo refeição
+  ALMOCO: 'Almoço',
+  JANTAR: 'Jantar',
   CAFE_MANHA: 'Café da Manhã',
   LANCHE_MANHA: 'Lanche Manhã',
   ALMOCO: 'Almoço',
@@ -32,7 +34,7 @@ const STATUS_LABELS = {
 
 function StatusBadge({ status }) {
   if (!status) return null;
-  const key = status.toLowerCase().replace(/_/g, '_');
+  const key = status.toLowerCase().replace(/_/g, '-');
   const label = STATUS_LABELS[status] || status;
   return (
     <span className={`badge badge-${key}`}>

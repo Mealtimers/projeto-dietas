@@ -10,16 +10,17 @@ const TRANSICOES = {
   AGUARDANDO_APROVACAO: ['APROVADO', 'REPROVADO', 'GERADO'],
   APROVADO:             ['EM_PRODUCAO'],
   REPROVADO:            ['GERADO'],
-  EM_PRODUCAO:          ['CONCLUIDO', 'CANCELADO'],
+  EM_PRODUCAO:          ['CONCLUIDO', 'CANCELADO', 'PENDENTE'],
   CONCLUIDO:            [],
   CANCELADO:            [],
 };
 
 // Status que bloqueiam edição estrutural do pedido
-const STATUS_BLOQUEADO = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
+// EM_PRODUCAO removido — agora o pedido pode ser editado mesmo em produção
+const STATUS_BLOQUEADO = ['APROVADO', 'CONCLUIDO', 'CANCELADO'];
 
-// Status que bloqueiam exclusão
-const STATUS_BLOQUEADO_EXCLUSAO = ['APROVADO', 'CONCLUIDO', 'EM_PRODUCAO'];
+// Status que bloqueiam exclusão (EM_PRODUCAO removido — agora pode ser excluído)
+const STATUS_BLOQUEADO_EXCLUSAO = ['CONCLUIDO'];
 
 function includeDetalhe() {
   return {
@@ -98,6 +99,7 @@ const criar = async (req, res, next) => {
   try {
     const {
       clienteId,
+      tipoRefeicao,
       totalPratos,
       maxRepeticoes,
       minRepeticoesLote,
@@ -129,6 +131,7 @@ const criar = async (req, res, next) => {
       const novo = await tx.pedidoDieta.create({
         data: {
           clienteId,
+          tipoRefeicao:      tipoRefeicao || 'ALMOCO',
           totalPratos:       parseInt(totalPratos),
           maxRepeticoes:     parseInt(maxRepeticoes),
           minRepeticoesLote: minRepeticoesLote ? parseInt(minRepeticoesLote) : 2,

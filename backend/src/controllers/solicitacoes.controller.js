@@ -97,4 +97,30 @@ const criar = async (req, res, next) => {
   }
 };
 
-module.exports = { listar, contar, buscarPorId, atualizarStatus, criar };
+const deletar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await prisma.solicitacaoOrcamento.delete({ where: { id } });
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+const deletarVarias = async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: 'Informe ao menos um ID.' });
+
+    const result = await prisma.solicitacaoOrcamento.deleteMany({ where: { id: { in: ids } } });
+    res.json({
+      deletados: result.count,
+      mensagem: `${result.count} solicitação(ões) excluída(s) com sucesso.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { listar, contar, buscarPorId, atualizarStatus, criar, deletar, deletarVarias };
