@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path        = require('path');
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
@@ -12,7 +13,10 @@ const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 
 // ── Segurança ────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,   // desabilita CSP — o frontend usa inline scripts do Vite
+  crossOriginEmbedderPolicy: false,
+}));
 
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
@@ -27,10 +31,15 @@ app.use(cors({
   credentials: true,
 }));
 
+// ── Frontend estático (produção) ────────────────────────────────
+// Serve ANTES do rate limiter para não contar arquivos estáticos no limite
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+
 app.use(express.json({ limit: '1mb' }));
 
-// Rate limiter global — 100 req / 15 min por IP
-app.use(rateLimit({
+// Rate limiter global — 100 req / 15 min por IP (apenas rotas /api)
+app.use('/api', rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
@@ -55,6 +64,11 @@ app.use('/api/portal', portalRoutes);
 app.use('/api', auth, routes);
 
 app.use(errorHandler);
+
+// Catch-all: qualquer rota que NÃO seja /api retorna index.html (SPA routing)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
