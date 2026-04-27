@@ -484,8 +484,12 @@ export default function PortalPage() {
               <button style={btnSecondaryStyle} onClick={() => {
                 setStep(1);
                 setNome(''); setEmail(''); setTelefone(''); setObservacoes('');
+                setTotalPratos(MIN_PRATOS);
                 setProteinas([{ alimentoNome: '', gramagem: '', quantidade: '' }]);
                 setCarbAtivo(false); setLegumAtivo(false); setLegumeAtivo(false);
+                setCarbSelecionados([]); setLegumSelecionados([]); setLegumeSelecionados([]);
+                setCarbGramagem(140); setLegumGramagem(100); setLegumeGramagem(80);
+                setLegumeObs('');
                 setMolhosSelecionados([]);
               }}>
                 Nova solicitação

@@ -323,9 +323,12 @@ const atualizarStatus = async (req, res, next) => {
       });
     }
 
+    const data = { status };
+    if (observacoes !== undefined) data.observacoes = observacoes;
+
     const atualizado = await prisma.pedidoDieta.update({
       where: { id },
-      data: { status, observacoes },
+      data,
     });
     res.json(atualizado);
   } catch (err) {

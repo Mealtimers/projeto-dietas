@@ -70,6 +70,13 @@ const aprovarOuReprovar = async (req, res, next) => {
     const pedido = await prisma.pedidoDieta.findUnique({ where: { id: pedidoId } });
     if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
 
+    // Validar: só processar aprovação se o pedido estiver aguardando aprovação
+    if (pedido.status !== 'AGUARDANDO_APROVACAO') {
+      return res.status(400).json({
+        error: `Pedido com status "${pedido.status}" não pode ser aprovado/reprovado. O pedido precisa estar em AGUARDANDO_APROVACAO.`,
+      });
+    }
+
     // Validar: só aprovar se existir versão ativa gerada
     if (status === 'APROVADO') {
       const versaoAtiva = await prisma.cardapioVersao.findFirst({ where: { pedidoId, ativo: true } });

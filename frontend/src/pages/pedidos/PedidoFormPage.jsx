@@ -58,6 +58,7 @@ export default function PedidoFormPage() {
   const [jantar, setJantar] = useState(emptyRefeicao());
   const [incluirJantar, setIncluirJantar] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState('ALMOCO');
+  const [tipoRefeicaoOriginal, setTipoRefeicaoOriginal] = useState('ALMOCO');
 
   // Referência ao estado ativo
   const refAtiva    = abaAtiva === 'ALMOCO' ? almoco : jantar;
@@ -94,9 +95,10 @@ export default function PedidoFormPage() {
   const initFromPedido = useCallback((pedido) => {
     setClienteId(pedido.clienteId);
     setMaxRepeticoes(pedido.maxRepeticoes);
-    setMinRepeticoesLote(pedido.minRepeticoesLote);
+    setMinRepeticoesLote(pedido.minRepeticoesLote ?? 2);
     setObservacoes(pedido.observacoes || '');
     setNutricionista(pedido.nutricionista || '');
+    setTipoRefeicaoOriginal(pedido.tipoRefeicao || 'ALMOCO');
 
     const ref = buildRefeicaoFromPedido(pedido);
     if (pedido.tipoRefeicao === 'JANTAR') {
@@ -311,35 +313,51 @@ export default function PedidoFormPage() {
 
     if (!clienteId) return setError('Selecione um cliente.');
 
-    // Validar almoço
-    const protAlmoco = almoco.proteinas.filter(
-      (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
-    );
-    if (protAlmoco.length === 0)
-      return setError('Informe ao menos uma proteína no Almoço com gramagem e quantidade de pratos.');
-
-    const totalAlmoco = protAlmoco.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
-    if (totalAlmoco < 5)
-      return setError('O Almoço deve ter no mínimo 5 pratos.');
-
-    // Validar jantar (se habilitado)
-    if (incluirJantar) {
-      const protJantar = jantar.proteinas.filter(
+    if (isEdit) {
+      // Em modo edição, validar apenas a refeição sendo editada
+      const editRef = tipoRefeicaoOriginal === 'JANTAR' ? jantar : almoco;
+      const editLabel = tipoRefeicaoOriginal === 'JANTAR' ? 'Jantar' : 'Almoço';
+      const protEdit = editRef.proteinas.filter(
         (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
       );
-      if (protJantar.length === 0)
-        return setError('Informe ao menos uma proteína no Jantar com gramagem e quantidade de pratos.');
+      if (protEdit.length === 0)
+        return setError(`Informe ao menos uma proteína no ${editLabel} com gramagem e quantidade de pratos.`);
 
-      const totalJantar = protJantar.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
-      if (totalJantar < 5)
-        return setError('O Jantar deve ter no mínimo 5 pratos.');
+      const totalEdit = protEdit.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
+      if (totalEdit < 5)
+        return setError(`O ${editLabel} deve ter no mínimo 5 pratos.`);
+    } else {
+      // Validar almoço
+      const protAlmoco = almoco.proteinas.filter(
+        (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
+      );
+      if (protAlmoco.length === 0)
+        return setError('Informe ao menos uma proteína no Almoço com gramagem e quantidade de pratos.');
+
+      const totalAlmoco = protAlmoco.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
+      if (totalAlmoco < 5)
+        return setError('O Almoço deve ter no mínimo 5 pratos.');
+
+      // Validar jantar (se habilitado)
+      if (incluirJantar) {
+        const protJantar = jantar.proteinas.filter(
+          (p) => p.alimentoBaseId && parseFloat(p.gramagem) > 0 && parseInt(p.quantidadePratos) > 0
+        );
+        if (protJantar.length === 0)
+          return setError('Informe ao menos uma proteína no Jantar com gramagem e quantidade de pratos.');
+
+        const totalJantar = protJantar.reduce((s, p) => s + parseInt(p.quantidadePratos), 0);
+        if (totalJantar < 5)
+          return setError('O Jantar deve ter no mínimo 5 pratos.');
+      }
     }
 
     setSaving(true);
     try {
       if (isEdit) {
-        // Edição — atualiza o pedido existente
-        const payload = buildPayload(almoco, 'ALMOCO');
+        // Edição — atualiza o pedido existente usando o tipo de refeição original
+        const editRef = tipoRefeicaoOriginal === 'JANTAR' ? jantar : almoco;
+        const payload = buildPayload(editRef, tipoRefeicaoOriginal);
         delete payload.clienteId; // não muda cliente
         const res = await pedidosApi.atualizar(editId, payload);
         navigate(`/pedidos/${res.data.id}`);

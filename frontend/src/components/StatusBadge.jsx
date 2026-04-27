@@ -26,9 +26,7 @@ const STATUS_LABELS = {
   JANTAR: 'Jantar',
   CAFE_MANHA: 'Café da Manhã',
   LANCHE_MANHA: 'Lanche Manhã',
-  ALMOCO: 'Almoço',
   LANCHE_TARDE: 'Lanche Tarde',
-  JANTAR: 'Jantar',
   CEIA: 'Ceia',
 };
 

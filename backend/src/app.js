@@ -12,6 +12,11 @@ const auth         = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
 const { seedDefaultAdmin } = require('./lib/userStore');
 
+// ── Validação de JWT_SECRET em produção ─────────────────────────
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET não definido. Defina a variável de ambiente JWT_SECRET em produção.');
+}
+
 const app = express();
 
 // ── Seed admin padrão na primeira execução ──────────────────────
@@ -54,10 +59,10 @@ app.use(express.static(frontendDist));
 
 app.use(express.json({ limit: '1mb' }));
 
-// Rate limiter global — 100 req / 15 min por IP (apenas rotas /api)
+// Rate limiter global — 500 req / 15 min por IP (apenas rotas /api)
 app.use('/api', rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas requisições. Tente novamente em alguns minutos.' },

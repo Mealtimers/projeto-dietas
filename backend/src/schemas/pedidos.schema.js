@@ -58,4 +58,26 @@ const deletarVarios = z.object({
   }),
 });
 
-module.exports = { criarPedido, atualizarStatus, atualizarValor, deletarVarios };
+const atualizarPedido = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({
+    totalPratos:       z.coerce.number().int().min(5, 'Mínimo de 5 pratos'),
+    maxRepeticoes:     z.coerce.number().int().positive('maxRepeticoes deve ser positivo'),
+    minRepeticoesLote: z.coerce.number().int().positive().default(2),
+    observacoes:       z.string().max(2000).optional().nullable(),
+    obsLegumes:        z.string().max(2000).optional().nullable(),
+    nutricionista:     z.string().max(200).optional().nullable(),
+    proteinas:         z.array(proteinaItem).min(1, 'Informe ao menos uma proteína'),
+    carboidratos:      grupoAcompanhamento,
+    leguminosas:       grupoAcompanhamento,
+    legumes:           grupoAcompanhamento,
+  }).passthrough().refine(
+    data => {
+      const soma = data.proteinas.reduce((s, p) => s + p.quantidadePratos, 0);
+      return soma === data.totalPratos;
+    },
+    { message: 'Soma das proteínas deve ser igual a totalPratos' },
+  ),
+});
+
+module.exports = { criarPedido, atualizarPedido, atualizarStatus, atualizarValor, deletarVarios };

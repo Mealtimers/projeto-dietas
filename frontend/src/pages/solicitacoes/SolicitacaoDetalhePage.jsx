@@ -95,7 +95,9 @@ export default function SolicitacaoDetalhePage() {
               <div className="detail-item"><label>Nome</label><span style={{ fontWeight: 600 }}>{sol.nome}</span></div>
               <div className="detail-item"><label>E-mail</label>
                 <span>
-                  <a href={`mailto:${sol.email}`} style={{ color: 'var(--primary)' }}>{sol.email}</a>
+                  {sol.email ? (
+                    <a href={`mailto:${sol.email}`} style={{ color: 'var(--primary)' }}>{sol.email}</a>
+                  ) : '—'}
                 </span>
               </div>
               <div className="detail-item"><label>Telefone</label><span>{sol.telefone || '—'}</span></div>
