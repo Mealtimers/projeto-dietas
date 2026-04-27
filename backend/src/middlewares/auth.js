@@ -13,7 +13,7 @@ module.exports = function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
 
     // Verificar se o usuário ainda existe e está ativo
-    const user = findById(decoded.id);
+    const user = findById(decoded.userId);
     if (!user || user.ativo === false) {
       return res.status(401).json({ error: 'Usuário desativado ou não encontrado. Faça login novamente.' });
     }
