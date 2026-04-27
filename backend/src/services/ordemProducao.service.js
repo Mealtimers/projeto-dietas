@@ -84,14 +84,34 @@ async function gerarOrdem(pedidoId) {
     mapaMontagem,
   };
 
-  const ordem = await prisma.ordemProducao.create({
-    data: { pedidoId, itensConsolidados },
-  });
+  // Atomic: revalida status + cria ordem + atualiza pedido em uma única transação,
+  // protegendo contra duplo clique e contra mudança de status concorrente.
+  const ordem = await prisma.$transaction(async (tx) => {
+    const pedido = await tx.pedidoDieta.findUnique({
+      where: { id: pedidoId },
+      select: { status: true },
+    });
+    if (!pedido) throw new Error('Pedido não encontrado.');
+    if (pedido.status !== 'APROVADO')
+      throw new Error(`Apenas pedidos com status APROVADO podem gerar ordem de produção. Status atual: "${pedido.status}".`);
 
-  await prisma.pedidoDieta.update({
-    where: { id: pedidoId },
-    data: { status: 'EM_PRODUCAO' },
-  });
+    const existente = await tx.ordemProducao.findUnique({ where: { pedidoId } });
+    if (existente) {
+      const err = new Error('Já existe uma ordem de produção para este pedido.');
+      err.code = 'ORDEM_DUPLICADA';
+      err.ordem = existente;
+      throw err;
+    }
+
+    const criada = await tx.ordemProducao.create({
+      data: { pedidoId, itensConsolidados },
+    });
+    await tx.pedidoDieta.update({
+      where: { id: pedidoId },
+      data: { status: 'EM_PRODUCAO' },
+    });
+    return criada;
+  }, { isolationLevel: 'Serializable' });
 
   return ordem;
 }

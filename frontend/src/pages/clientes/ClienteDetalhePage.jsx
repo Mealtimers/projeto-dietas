@@ -20,7 +20,15 @@ export default function ClienteDetalhePage() {
     setLoading(true);
     clientesApi.buscar(id)
       .then((res) => setCliente(res.data))
-      .catch(() => setError('Erro ao carregar cliente.'))
+      .catch((err) => {
+        const status = err.response?.status;
+        const msg    = err.response?.data?.error;
+        if (status === 404)      setError('Cliente não encontrado. Pode ter sido excluído.');
+        else if (status === 401) setError('Sessão expirada. Faça login novamente.');
+        else if (status >= 500)  setError(`Erro no servidor (${status}). ${msg || 'Tente novamente em alguns segundos.'}`);
+        else if (!err.response)  setError('Sem conexão com o servidor. Verifique sua internet.');
+        else                     setError(msg || `Erro ao carregar cliente (HTTP ${status || 'desconhecido'}).`);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 

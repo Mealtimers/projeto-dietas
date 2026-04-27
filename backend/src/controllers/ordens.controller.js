@@ -38,25 +38,17 @@ const buscarPorId = async (req, res, next) => {
 const gerar = async (req, res, next) => {
   try {
     const { pedidoId } = req.params;
-    const pedido = await prisma.pedidoDieta.findUnique({ where: { id: pedidoId } });
-    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
-    if (pedido.status !== 'APROVADO') {
-      return res.status(400).json({
-        error: `Apenas pedidos com status APROVADO podem gerar ordem de produção. Status atual: "${pedido.status}".`,
-      });
-    }
-
-    const ordemExistente = await prisma.ordemProducao.findUnique({ where: { pedidoId } });
-    if (ordemExistente) {
-      return res.status(409).json({
-        error: 'Já existe uma ordem de produção para este pedido.',
-        ordem: ordemExistente,
-      });
-    }
-
     const ordem = await ordemProducaoService.gerarOrdem(pedidoId);
     res.status(201).json(ordem);
   } catch (err) {
+    if (err.code === 'ORDEM_DUPLICADA')
+      return res.status(409).json({ error: err.message, ordem: err.ordem });
+    if (err.message?.includes('Pedido não encontrado'))
+      return res.status(404).json({ error: err.message });
+    if (err.message?.includes('APROVADO'))
+      return res.status(400).json({ error: err.message });
+    if (err.message?.includes('Nenhuma versão'))
+      return res.status(400).json({ error: err.message });
     next(err);
   }
 };

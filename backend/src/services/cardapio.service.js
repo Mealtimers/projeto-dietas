@@ -22,29 +22,49 @@ async function gerarCardapio(pedidoId) {
   const pedido = await carregarPedido(pedidoId);
   validarPedido(pedido);
 
-  const ultimoNumero = pedido.versoes[0]?.numero ?? 0;
-  const novoNumero   = ultimoNumero + 1;
   const { maxRepeticoes } = pedido;
 
   const carbOpcoes = montarOpcoesCarboidrato(pedido.itensPermitidos);
   const legOpcoes  = montarOpcoesSimples(pedido.itensPermitidos, 'Leguminosa');
   const vegOpcoes  = montarOpcoesSimples(pedido.itensPermitidos, 'Legumes');
 
-  const todosLotes = [];
-  for (let blocoIdx = 0; blocoIdx < pedido.proteinas.length; blocoIdx++) {
-    const proteina = pedido.proteinas[blocoIdx];
-    const lotes = gerarLotesProteina(
-      proteina, carbOpcoes, legOpcoes, vegOpcoes,
-      blocoIdx, novoNumero, maxRepeticoes,
-    );
-    todosLotes.push(...lotes);
-  }
+  // O número da versão é determinado dentro da transação para evitar
+  // race condition quando duas requisições simultâneas tentam gerar.
+  // A geração dos lotes depende do número (offset determinístico),
+  // então recalculamos dentro da transação.
+  const resultado = await prisma.$transaction(async (tx) => {
+    const ultima = await tx.cardapioVersao.findFirst({
+      where: { pedidoId },
+      orderBy: { numero: 'desc' },
+      select: { numero: true },
+    });
+    const novoNumero = (ultima?.numero ?? 0) + 1;
 
-  if (todosLotes.length === 0)
-    throw new Error('Não foi possível gerar nenhum lote. Verifique proteínas e itens permitidos do pedido.');
+    const todosLotes = [];
+    for (let blocoIdx = 0; blocoIdx < pedido.proteinas.length; blocoIdx++) {
+      const proteina = pedido.proteinas[blocoIdx];
+      const lotes = gerarLotesProteina(
+        proteina, carbOpcoes, legOpcoes, vegOpcoes,
+        blocoIdx, novoNumero, maxRepeticoes,
+      );
+      todosLotes.push(...lotes);
+    }
 
-  await persistirVersao(pedidoId, novoNumero, todosLotes);
-  return { versaoNumero: novoNumero, totalLotes: todosLotes.length, totalPratos: pedido.totalPratos };
+    if (todosLotes.length === 0)
+      throw new Error('Não foi possível gerar nenhum lote. Verifique proteínas e itens permitidos do pedido.');
+
+    await tx.cardapioVersao.updateMany({ where: { pedidoId, ativo: true }, data: { ativo: false } });
+    const versao = await tx.cardapioVersao.create({ data: { pedidoId, numero: novoNumero, ativo: true } });
+    for (const lote of todosLotes) {
+      const loteCreado = await tx.loteCardapio.create({ data: { versaoId: versao.id, quantidade: lote.quantidade } });
+      await tx.itemLote.createMany({ data: lote.itens.map((item) => ({ loteId: loteCreado.id, ...item })) });
+    }
+    await tx.pedidoDieta.update({ where: { id: pedidoId }, data: { status: 'GERADO' } });
+
+    return { novoNumero, totalLotes: todosLotes.length };
+  }, { isolationLevel: 'Serializable' });
+
+  return { versaoNumero: resultado.novoNumero, totalLotes: resultado.totalLotes, totalPratos: pedido.totalPratos };
 }
 
 // ─── Particionamento ──────────────────────────────────────────────────────────
@@ -179,20 +199,6 @@ function montarOpcoesSimples(itensPermitidos, grupoNome) {
   return intercalarPreparos(grupos);
 }
 
-// ─── Persistência ─────────────────────────────────────────────────────────────
-
-async function persistirVersao(pedidoId, numero, lotes) {
-  await prisma.$transaction(async (tx) => {
-    await tx.cardapioVersao.updateMany({ where: { pedidoId, ativo: true }, data: { ativo: false } });
-    const versao = await tx.cardapioVersao.create({ data: { pedidoId, numero, ativo: true } });
-    for (const lote of lotes) {
-      const loteCreado = await tx.loteCardapio.create({ data: { versaoId: versao.id, quantidade: lote.quantidade } });
-      await tx.itemLote.createMany({ data: lote.itens.map((item) => ({ loteId: loteCreado.id, ...item })) });
-    }
-    await tx.pedidoDieta.update({ where: { id: pedidoId }, data: { status: 'GERADO' } });
-  });
-}
-
 // ─── Carregamento e validação ──────────────────────────────────────────────────
 
 async function carregarPedido(pedidoId) {
@@ -210,7 +216,6 @@ async function carregarPedido(pedidoId) {
           },
         },
       },
-      versoes: { orderBy: { numero: 'desc' }, take: 1 },
     },
   });
 }

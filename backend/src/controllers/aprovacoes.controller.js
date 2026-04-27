@@ -67,50 +67,61 @@ const aprovarOuReprovar = async (req, res, next) => {
       return res.status(400).json({ error: 'Status inválido. Use APROVADO, REPROVADO ou PENDENTE.' });
     }
 
-    const pedido = await prisma.pedidoDieta.findUnique({ where: { id: pedidoId } });
-    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
-
-    // Validar: só processar aprovação se o pedido estiver aguardando aprovação
-    if (pedido.status !== 'AGUARDANDO_APROVACAO') {
-      return res.status(400).json({
-        error: `Pedido com status "${pedido.status}" não pode ser aprovado/reprovado. O pedido precisa estar em AGUARDANDO_APROVACAO.`,
-      });
-    }
-
-    // Validar: só aprovar se existir versão ativa gerada
-    if (status === 'APROVADO') {
-      const versaoAtiva = await prisma.cardapioVersao.findFirst({ where: { pedidoId, ativo: true } });
-      if (!versaoAtiva)
-        return res.status(400).json({ error: 'Não é possível aprovar sem versão de cardápio ativa. Gere o cardápio primeiro.' });
-    }
-
-    const aprovacao = await prisma.aprovacaoCliente.upsert({
-      where: { pedidoId },
-      create: {
-        pedidoId,
-        status,
-        observacoes,
-        dataAprovacao: status !== 'PENDENTE' ? new Date() : null,
-      },
-      update: {
-        status,
-        observacoes,
-        dataAprovacao: status !== 'PENDENTE' ? new Date() : null,
-      },
-      include: { pedido: { select: { id: true, status: true } } },
-    });
-
-    const novoStatus =
-      status === 'APROVADO' ? 'APROVADO' :
+    const novoStatusPedido =
+      status === 'APROVADO'  ? 'APROVADO' :
       status === 'REPROVADO' ? 'REPROVADO' :
-      'AGUARDANDO_APROVACAO';
+                               'AGUARDANDO_APROVACAO';
 
-    await prisma.pedidoDieta.update({
-      where: { id: pedidoId },
-      data: { status: novoStatus },
-    });
+    const dataAprovacao = status !== 'PENDENTE' ? new Date() : null;
 
-    res.json(aprovacao);
+    try {
+      const aprovacao = await prisma.$transaction(async (tx) => {
+        const pedido = await tx.pedidoDieta.findUnique({
+          where: { id: pedidoId },
+          select: { status: true },
+        });
+        if (!pedido) {
+          const err = new Error('Pedido não encontrado.');
+          err.statusCode = 404;
+          throw err;
+        }
+        if (pedido.status !== 'AGUARDANDO_APROVACAO') {
+          const err = new Error(
+            `Pedido com status "${pedido.status}" não pode ser aprovado/reprovado. O pedido precisa estar em AGUARDANDO_APROVACAO.`,
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        if (status === 'APROVADO') {
+          const versaoAtiva = await tx.cardapioVersao.findFirst({ where: { pedidoId, ativo: true } });
+          if (!versaoAtiva) {
+            const err = new Error('Não é possível aprovar sem versão de cardápio ativa. Gere o cardápio primeiro.');
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        const ap = await tx.aprovacaoCliente.upsert({
+          where: { pedidoId },
+          create: { pedidoId, status, observacoes, dataAprovacao },
+          update: { status, observacoes, dataAprovacao },
+          include: { pedido: { select: { id: true, status: true } } },
+        });
+
+        await tx.pedidoDieta.update({
+          where: { id: pedidoId },
+          data: { status: novoStatusPedido },
+        });
+
+        return ap;
+      }, { isolationLevel: 'Serializable' });
+
+      res.json(aprovacao);
+    } catch (err) {
+      if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+      throw err;
+    }
   } catch (err) {
     next(err);
   }
