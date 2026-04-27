@@ -59,26 +59,27 @@ app.use(express.static(frontendDist));
 
 app.use(express.json({ limit: '1mb' }));
 
-// Rate limiter global — 500 req / 15 min por IP (apenas rotas /api)
+// Rate limiter global — 2000 req / 15 min por IP (apenas rotas /api)
 app.use('/api', rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas requisições. Tente novamente em alguns minutos.' },
 }));
 
-// Rate limiter mais restritivo para auth (login) — 10 tentativas / 15 min
-const authLimiter = rateLimit({
+// Rate limiter restritivo APENAS para login — 20 tentativas / 15 min
+const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 });
 
-// Rotas públicas (auth com rate limiter restritivo)
-app.use('/api/auth', authLimiter, authRoutes);
+// Rotas públicas (login com rate limiter restritivo, demais rotas auth sem limiter extra)
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth', authRoutes);
 app.use('/api/portal', portalRoutes);
 
 // Rotas protegidas — exige token JWT
