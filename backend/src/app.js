@@ -10,8 +10,12 @@ const authRoutes   = require('./routes/auth.routes');
 const portalRoutes = require('./routes/portal.routes');
 const auth         = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
+const { seedDefaultAdmin } = require('./lib/userStore');
 
 const app = express();
+
+// ── Seed admin padrão na primeira execução ──────────────────────
+seedDefaultAdmin();
 
 // ── Trust proxy (Railway/Heroku usa reverse proxy) ──────────────
 app.set('trust proxy', 1);

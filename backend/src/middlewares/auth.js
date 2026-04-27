@@ -9,7 +9,7 @@ module.exports = function authMiddleware(req, res, next) {
   }
   const token = header.slice(7);
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
     next();
   } catch {
     return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.' });
