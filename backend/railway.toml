@@ -1,5 +1,5 @@
 [build]
-buildCommand = "cd ../frontend && npm install && npm run build && cd ../backend && npm install && npx prisma generate"
+buildCommand = "npm install && npx prisma generate"
 
 [deploy]
 startCommand = "npx prisma migrate resolve --applied 20260423015648_init_completo 2>/dev/null; npx prisma migrate deploy || true && node src/app.js"
