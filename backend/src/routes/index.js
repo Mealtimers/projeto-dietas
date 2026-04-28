@@ -10,5 +10,6 @@ router.use('/aprovacoes', require('./aprovacoes.routes'));
 router.use('/ordens-producao', require('./ordens.routes'));
 router.use('/lotes',           require('./lotes.routes'));
 router.use('/solicitacoes',    require('./solicitacoes.routes'));
+router.use('/admin',           require('./admin.routes'));
 
 module.exports = router;
