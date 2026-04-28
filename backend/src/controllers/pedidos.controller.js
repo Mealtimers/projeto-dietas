@@ -217,6 +217,12 @@ const atualizar = async (req, res, next) => {
       });
 
     await prisma.$transaction(async (tx) => {
+      // Edição estrutural recria proteínas/itens — limpa cardápios, aprovações
+      // e ordens antigas, que ficariam apontando para uma estrutura que não existe mais.
+      await tx.cardapioVersao.deleteMany({ where: { pedidoId: id } });
+      await tx.aprovacaoCliente.deleteMany({ where: { pedidoId: id } });
+      await tx.ordemProducao.deleteMany({ where: { pedidoId: id } });
+
       await tx.pedidoDieta.update({
         where: { id },
         data: {

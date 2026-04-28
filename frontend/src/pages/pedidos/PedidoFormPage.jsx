@@ -58,6 +58,7 @@ export default function PedidoFormPage() {
   const [jantar, setJantar] = useState(emptyRefeicao());
   const [incluirJantar, setIncluirJantar] = useState(false);
   const [abaAtiva, setAbaAtiva] = useState('ALMOCO');
+  const [editAvisoStale, setEditAvisoStale] = useState(null); // { status, temAprovacao, temOrdem }
   const [tipoRefeicaoOriginal, setTipoRefeicaoOriginal] = useState('ALMOCO');
 
   // Referência ao estado ativo
@@ -191,6 +192,13 @@ export default function PedidoFormPage() {
           if (isEdit && STATUS_BLOQUEADO.includes(pedido.status)) {
             setError(`Pedido com status "${pedido.status}" não pode ser editado.`);
           } else {
+            if (isEdit && (pedido.status === 'EM_PRODUCAO' || pedido.aprovacao || pedido.ordemProducao)) {
+              setEditAvisoStale({
+                status:        pedido.status,
+                temAprovacao:  Boolean(pedido.aprovacao),
+                temOrdem:      Boolean(pedido.ordemProducao),
+              });
+            }
             initFromPedido(pedido);
           }
         } else if (sRes) {
@@ -586,6 +594,17 @@ export default function PedidoFormPage() {
       </div>
       <div className="page-content">
         {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
+        {editAvisoStale && (
+          <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: '0.88rem', color: '#92400e' }}>
+            <b>⚠ Atenção — edição vai descartar dados:</b> ao salvar este pedido
+            {editAvisoStale.status === 'EM_PRODUCAO' && <> em <b>EM PRODUÇÃO</b></>}
+            , o sistema vai apagar
+            {editAvisoStale.temAprovacao && <> a <b>aprovação atual</b>,</>}
+            {editAvisoStale.temOrdem      && <> a <b>ordem de produção</b>,</>}
+            {' '}e todas as versões de cardápio geradas. O pedido voltará para
+            <b> PENDENTE</b> e precisará passar por geração + aprovação + ordem novamente.
+          </div>
+        )}
         {isRepeat && (
           <div className="alert alert-info" style={{ marginBottom: 16 }}>
             Os dados do pedido anterior foram pré-preenchidos. Ajuste o que precisar antes de salvar.

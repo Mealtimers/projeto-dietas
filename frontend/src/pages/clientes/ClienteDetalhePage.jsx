@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { clientesApi, pedidosApi } from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 
-const STATUS_BLOQUEADO_EDICAO   = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
+const STATUS_BLOQUEADO_EDICAO   = ['APROVADO', 'CONCLUIDO', 'CANCELADO'];
 const STATUS_BLOQUEADO_EXCLUSAO = ['APROVADO', 'CONCLUIDO', 'EM_PRODUCAO'];
 
 export default function ClienteDetalhePage() {

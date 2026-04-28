@@ -5,8 +5,8 @@ import StatusBadge from '../../components/StatusBadge';
 
 const POR_PAGINA = 20;
 
-// Bloqueia edição estrutural
-const STATUS_BLOQUEADO_EDICAO   = ['APROVADO', 'EM_PRODUCAO', 'CONCLUIDO', 'CANCELADO'];
+// Bloqueia edição estrutural — EM_PRODUCAO permite editar (regenera cardápio/ordem)
+const STATUS_BLOQUEADO_EDICAO   = ['APROVADO', 'CONCLUIDO', 'CANCELADO'];
 // Bloqueia exclusão direta (EM_PRODUCAO precisa cancelar antes)
 const STATUS_BLOQUEADO_EXCLUSAO = ['APROVADO', 'CONCLUIDO', 'EM_PRODUCAO'];
 
