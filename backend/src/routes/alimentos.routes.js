@@ -12,5 +12,7 @@ router.delete('/:id', alimentosController.deletar);
 router.post('/:id/preparos', validate(criarPreparo), alimentosController.adicionarPreparo);
 router.put('/preparos/:preparoId', alimentosController.atualizarPreparo);
 router.delete('/preparos/:preparoId', alimentosController.deletarPreparo);
+router.put('/preparos/:preparoId/mealcontrol-link',    alimentosController.vincularMealcontrol);
+router.delete('/preparos/:preparoId/mealcontrol-link', alimentosController.desvincularMealcontrol);
 
 module.exports = router;

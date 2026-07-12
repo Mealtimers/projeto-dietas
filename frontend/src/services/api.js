@@ -64,6 +64,13 @@ export const alimentosApi = {
   adicionarPreparo: (id, data) => api.post(`/alimentos/${id}/preparos`, data),
   atualizarPreparo: (preparoId, data) => api.put(`/alimentos/preparos/${preparoId}`, data),
   deletarPreparo: (preparoId) => api.delete(`/alimentos/preparos/${preparoId}`),
+  vincularMealcontrol:   (preparoId, data) => api.put(`/alimentos/preparos/${preparoId}/mealcontrol-link`, data),
+  desvincularMealcontrol: (preparoId)      => api.delete(`/alimentos/preparos/${preparoId}/mealcontrol-link`),
+};
+
+export const mealcontrolApi = {
+  listarReceitas: () => api.get('/mealcontrol/recipes'),
+  health:         () => api.get('/mealcontrol/health'),
 };
 
 export const preparosApi = {

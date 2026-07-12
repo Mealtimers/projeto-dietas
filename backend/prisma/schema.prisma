@@ -41,10 +41,20 @@ model PreparoAlimento {
   gramagem        Float?
   ativo           Boolean               @default(true)
   createdAt       DateTime              @default(now())
+
+  // Vínculo com receita do Meal Control (ficha técnica).
+  // isRepresentative = true quando o preparo do dietas não tem correspondência
+  // exata no MC e usa uma receita similar como aproximação.
+  mealcontrolRecipeId       Int?
+  mealcontrolRecipeName     String?   // snapshot do nome (evita bater no MC pra exibir)
+  mealcontrolIsRepresentative Boolean @default(false)
+  mealcontrolLinkedAt       DateTime?
+
   itensLote       ItemLote[]
   itensPermitidos PedidoItemPermitido[]
 
   @@index([alimentoId])
+  @@index([mealcontrolRecipeId])
 }
 
 model EquivalenciaAlimento {

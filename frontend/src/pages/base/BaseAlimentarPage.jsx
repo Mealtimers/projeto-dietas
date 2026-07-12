@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
-import { gruposApi, alimentosApi } from '../../services/api';
+import { gruposApi, alimentosApi, mealcontrolApi } from '../../services/api';
+import { LinkBadge, LinkModal } from '../../components/MealcontrolLink';
+
+// Normalização pra match: lowercase, sem acentos, sem hífen/espaço extra
+const norm = (s) => (s || '')
+  .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
 
 const GRUPO_CARBOIDRATO = 'Carboidrato';
 
@@ -27,6 +35,60 @@ export default function BaseAlimentarPage() {
   // Edição de preparo
   const [editPreparo, setEditPreparo] = useState(null);
   const [editPreparoNome, setEditPreparoNome] = useState('');
+
+  // Vínculo com Meal Control
+  const [linkModalPreparo, setLinkModalPreparo] = useState(null);
+
+  const handleMcLinkSaved = (preparoAtualizado) => {
+    setAlimentos((prev) => prev.map((a) => a.id === preparoAtualizado.alimentoId
+      ? { ...a, preparos: a.preparos.map((p) => p.id === preparoAtualizado.id ? { ...p, ...preparoAtualizado } : p) }
+      : a));
+    showMsg('Vínculo com Meal Control salvo.');
+  };
+
+  // Auto-match: vincula todos os preparos sem vínculo que batem exatamente (normalizado)
+  // com uma receita do MC. Casos ambíguos (múltiplas receitas com mesmo nome) são pulados.
+  const [autoMatchRunning, setAutoMatchRunning] = useState(false);
+  const handleAutoMatch = async () => {
+    if (!window.confirm('Vincular automaticamente preparos sem vínculo cujo nome bata exatamente com uma receita do Meal Control?')) return;
+    setAutoMatchRunning(true);
+    setError(null);
+    try {
+      const res = await mealcontrolApi.listarReceitas();
+      const recipes = res.data.recipes || [];
+      // Index por nome normalizado. Se houver colisão, guarda null pra pular.
+      const byName = new Map();
+      for (const r of recipes) {
+        const key = norm(r.name);
+        if (!key) continue;
+        byName.set(key, byName.has(key) ? null : r);
+      }
+
+      let vinculados = 0, semMatch = 0, ambiguos = 0;
+      const errosPreparo = [];
+      const preparosSemVinculo = alimentos.flatMap((a) => (a.preparos || []).filter((p) => !p.mealcontrolRecipeId));
+      for (const preparo of preparosSemVinculo) {
+        const key = norm(preparo.nome);
+        const recipe = byName.get(key);
+        if (recipe === undefined) { semMatch++; continue; }
+        if (recipe === null)      { ambiguos++; continue; }
+        try {
+          const upd = await alimentosApi.vincularMealcontrol(preparo.id, {
+            recipeId: recipe.id, recipeName: recipe.name, isRepresentative: false,
+          });
+          handleMcLinkSaved(upd.data);
+          vinculados++;
+        } catch {
+          errosPreparo.push(preparo.nome);
+        }
+      }
+      showMsg(`Auto-vínculo: ${vinculados} vinculados, ${ambiguos} ambíguos (nome duplicado no MC), ${semMatch} sem match. ${errosPreparo.length > 0 ? `${errosPreparo.length} erros.` : ''}`);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao rodar auto-vínculo.');
+    } finally {
+      setAutoMatchRunning(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -201,9 +263,19 @@ export default function BaseAlimentarPage() {
     <>
       <div className="page-header">
         <h1>Base Alimentar</h1>
-        <button className="btn btn-primary" onClick={() => setShowAlimentoForm(!showAlimentoForm)}>
-          + Novo Alimento
-        </button>
+        <div className="btn-group">
+          <button
+            className="btn btn-outline"
+            onClick={handleAutoMatch}
+            disabled={autoMatchRunning}
+            title="Vincula preparos sem vínculo cujo nome bata exatamente com uma receita do Meal Control"
+          >
+            {autoMatchRunning ? 'Vinculando…' : '🔗 Auto-vincular MC'}
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowAlimentoForm(!showAlimentoForm)}>
+            + Novo Alimento
+          </button>
+        </div>
       </div>
       <div className="page-content">
         {error && (
@@ -390,10 +462,19 @@ export default function BaseAlimentarPage() {
                           </>
                         ) : (
                           <>
-                            <span style={{ flex: 1, fontSize: '0.875rem' }}>
+                            <span style={{ flex: 1, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               {preparo.nome}
-                              {!preparo.ativo && <span style={{ color: 'var(--gray-400)', fontSize: '0.75rem', marginLeft: 6 }}>(inativo)</span>}
+                              {!preparo.ativo && <span style={{ color: 'var(--gray-400)', fontSize: '0.75rem' }}>(inativo)</span>}
+                              <LinkBadge preparo={preparo} />
                             </span>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                              onClick={() => setLinkModalPreparo(preparo)}
+                              title="Vincular com receita do Meal Control"
+                            >
+                              🔗 MC
+                            </button>
                             <button className="btn btn-sm btn-outline" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => { setEditPreparo(preparo.id); setEditPreparoNome(preparo.nome); }}>Editar</button>
                             <button className={`btn btn-sm ${preparo.ativo ? 'btn-secondary' : 'btn-success'}`} style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => handleTogglePreparo(preparo.id, alimento.id, preparo.ativo)}>
                               {preparo.ativo ? 'Desativar' : 'Ativar'}
@@ -424,6 +505,14 @@ export default function BaseAlimentarPage() {
           );
         })}
       </div>
+
+      {linkModalPreparo && (
+        <LinkModal
+          preparo={linkModalPreparo}
+          onClose={() => setLinkModalPreparo(null)}
+          onSaved={handleMcLinkSaved}
+        />
+      )}
     </>
   );
 }

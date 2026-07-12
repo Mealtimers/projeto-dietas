@@ -132,6 +132,53 @@ const deletarPreparo = async (req, res, next) => {
   }
 };
 
+// PUT /api/alimentos/preparos/:preparoId/mealcontrol-link
+// body: { recipeId: number, recipeName: string, isRepresentative?: boolean }
+const vincularMealcontrol = async (req, res, next) => {
+  try {
+    const { preparoId } = req.params;
+    const { recipeId, recipeName, isRepresentative } = req.body || {};
+    if (!Number.isInteger(recipeId) || recipeId <= 0)
+      return res.status(400).json({ error: 'recipeId inválido (esperado inteiro positivo).' });
+    if (typeof recipeName !== 'string' || !recipeName.trim())
+      return res.status(400).json({ error: 'recipeName é obrigatório.' });
+
+    const preparo = await prisma.preparoAlimento.update({
+      where: { id: preparoId },
+      data: {
+        mealcontrolRecipeId:         recipeId,
+        mealcontrolRecipeName:       recipeName.trim(),
+        mealcontrolIsRepresentative: Boolean(isRepresentative),
+        mealcontrolLinkedAt:         new Date(),
+      },
+    });
+    res.json(preparo);
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Preparo não encontrado.' });
+    next(err);
+  }
+};
+
+// DELETE /api/alimentos/preparos/:preparoId/mealcontrol-link
+const desvincularMealcontrol = async (req, res, next) => {
+  try {
+    const { preparoId } = req.params;
+    const preparo = await prisma.preparoAlimento.update({
+      where: { id: preparoId },
+      data: {
+        mealcontrolRecipeId:         null,
+        mealcontrolRecipeName:       null,
+        mealcontrolIsRepresentative: false,
+        mealcontrolLinkedAt:         null,
+      },
+    });
+    res.json(preparo);
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Preparo não encontrado.' });
+    next(err);
+  }
+};
+
 module.exports = {
   listar,
   buscarPorId,
@@ -141,4 +188,6 @@ module.exports = {
   adicionarPreparo,
   atualizarPreparo,
   deletarPreparo,
+  vincularMealcontrol,
+  desvincularMealcontrol,
 };
