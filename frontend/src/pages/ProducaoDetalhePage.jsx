@@ -17,6 +17,7 @@ export default function ProducaoDetalhePage() {
   const [ordem, setOrdem]       = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
+  const [enviando, setEnviando] = useState(false);
   const [abaDetalhe, setAbaDetalhe]     = useState('consolidado');
   const [docImpressao, setDocImpressao] = useState('descritivo');
 
@@ -26,6 +27,20 @@ export default function ProducaoDetalhePage() {
       .catch(() => setError('Erro ao carregar ordem de produção.'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleEnviarProducao = async () => {
+    if (!window.confirm('Enviar esta ordem para a fábrica? Ela passa a aparecer no MealControl (Produção & Compras › Dietas personalizadas).')) return;
+    setEnviando(true);
+    try {
+      await ordensApi.atualizarStatus(id, { status: 'EM_ANDAMENTO' });
+      const res = await ordensApi.buscar(id);
+      setOrdem(res.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao enviar para produção.');
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   if (loading) return <div className="loading">Carregando...</div>;
   if (error) return <div className="page-content"><div className="alert alert-error">{error}</div></div>;
@@ -60,6 +75,11 @@ export default function ProducaoDetalhePage() {
         <h1>Somatório — {cliente}</h1>
         <div className="btn-group">
           <StatusBadge status={ordem.status} />
+          {ordem.status === 'PENDENTE' && (
+            <button className="btn btn-primary" onClick={handleEnviarProducao} disabled={enviando}>
+              🏭 Enviar para produção
+            </button>
+          )}
           <Link to="/producao" className="btn btn-outline">← Voltar</Link>
         </div>
       </div>

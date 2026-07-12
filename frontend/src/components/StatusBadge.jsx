@@ -11,7 +11,7 @@ const STATUS_LABELS = {
   // Aprovação
   // (shared with above)
   // Ordem
-  EM_ANDAMENTO: 'Em Andamento',
+  EM_ANDAMENTO: 'Em Produção',
   CONCLUIDA: 'Concluída',
   CANCELADA: 'Cancelada',
   // Dieta

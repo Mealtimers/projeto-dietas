@@ -4,7 +4,7 @@ import { ordensApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 
 const STATUS_OPTIONS   = ['PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA'];
-const STATUS_LABELS    = { PENDENTE: 'Pendente', EM_ANDAMENTO: 'Em Andamento', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
+const STATUS_LABELS    = { PENDENTE: 'Pendente', EM_ANDAMENTO: 'Em Produção', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
 
 export default function ProducaoPage() {
   const [ordens, setOrdens]                   = useState([]);
@@ -115,8 +115,15 @@ export default function ProducaoPage() {
                               📊 Somatório
                             </Link>
                             {o.status === 'PENDENTE' && (
-                              <button className="btn btn-sm btn-primary" onClick={() => handleAtualizarStatus(o.id, 'EM_ANDAMENTO')} disabled={atualizando[o.id]}>
-                                ▶ Iniciar
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => {
+                                  if (window.confirm(`Enviar a produção de ${o.pedido?.cliente?.nome || 'este pedido'} para a fábrica? A ordem passa a aparecer no MealControl (Produção & Compras › Dietas personalizadas).`))
+                                    handleAtualizarStatus(o.id, 'EM_ANDAMENTO');
+                                }}
+                                disabled={atualizando[o.id]}
+                              >
+                                🏭 Enviar para produção
                               </button>
                             )}
                             {o.status === 'EM_ANDAMENTO' && (
