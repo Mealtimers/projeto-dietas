@@ -50,11 +50,12 @@ export default function BaseAlimentarPage() {
   // com uma receita do MC. Casos ambíguos (múltiplas receitas com mesmo nome) são pulados.
   const [autoMatchRunning, setAutoMatchRunning] = useState(false);
   const handleAutoMatch = async () => {
-    if (!window.confirm('Vincular automaticamente preparos sem vínculo cujo nome bata exatamente com uma receita do Meal Control?')) return;
+    if (!window.confirm('Buscar receitas mais recentes do Meal Control e vincular automaticamente os preparos sem vínculo cujo nome bata exatamente?')) return;
     setAutoMatchRunning(true);
     setError(null);
     try {
-      const res = await mealcontrolApi.listarReceitas();
+      // Sempre força refresh pra pegar receitas novas cadastradas no MC
+      const res = await mealcontrolApi.atualizar();
       const recipes = res.data.recipes || [];
       // Index por nome normalizado. Se houver colisão, guarda null pra pular.
       const byName = new Map();

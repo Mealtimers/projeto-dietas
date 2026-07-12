@@ -70,6 +70,7 @@ export const alimentosApi = {
 
 export const mealcontrolApi = {
   listarReceitas: () => api.get('/mealcontrol/recipes'),
+  atualizar:      () => api.post('/mealcontrol/refresh'),
   health:         () => api.get('/mealcontrol/health'),
 };
 

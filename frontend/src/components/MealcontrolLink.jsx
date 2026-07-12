@@ -43,9 +43,13 @@ export function LinkModal({ preparo, onClose, onSaved }) {
   const [error, setError]     = useState(null);
   const [busca, setBusca]     = useState(preparo.nome);
   const [saving, setSaving]   = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    mealcontrolApi.listarReceitas()
+  const carregar = (forcarRefresh = false) => {
+    setLoading(true);
+    setError(null);
+    const p = forcarRefresh ? mealcontrolApi.atualizar() : mealcontrolApi.listarReceitas();
+    return p
       .then((res) => setRecipes(res.data.recipes || []))
       .catch((err) => {
         const status = err.response?.status;
@@ -54,7 +58,15 @@ export function LinkModal({ preparo, onClose, onSaved }) {
         else setError('Erro ao buscar receitas do Meal Control.');
       })
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { carregar(false); }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await carregar(true);
+    setRefreshing(false);
+  };
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -122,15 +134,28 @@ export function LinkModal({ preparo, onClose, onSaved }) {
           </div>
         )}
 
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Buscar receita por nome…"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          autoFocus
-          style={{ marginBottom: 10 }}
-        />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar receita por nome…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            autoFocus
+            style={{ flex: 1 }}
+          />
+          <button
+            className="btn btn-sm btn-outline"
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            title="Buscar receitas atualizadas do Meal Control (invalida cache)"
+          >
+            {refreshing ? '…' : '🔄'}
+          </button>
+        </div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--gray-400)', marginBottom: 8 }}>
+          {recipes.length} receita(s) · cache 30s · clique 🔄 pra forçar atualização
+        </div>
 
         {error && <div className="alert alert-error" style={{ marginBottom: 10 }}>{error}</div>}
 

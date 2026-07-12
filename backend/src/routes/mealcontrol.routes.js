@@ -14,7 +14,7 @@ let cachedRecipes   = null;
 let cachedRecipesAt = 0;
 
 const TOKEN_TTL_MS   = 6 * 60 * 60 * 1000; // 6h
-const RECIPES_TTL_MS = 60 * 1000;          // 60s
+const RECIPES_TTL_MS = 30 * 1000;          // 30s
 
 async function login() {
   if (cachedToken && Date.now() - cachedTokenAt < TOKEN_TTL_MS) return cachedToken;
@@ -64,6 +64,23 @@ router.get('/recipes', async (req, res, next) => {
     cachedRecipes   = slim;
     cachedRecipesAt = Date.now();
     res.json({ recipes: slim, cached: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/mealcontrol/refresh — invalida cache de receitas (força bust)
+router.post('/refresh', async (req, res, next) => {
+  try {
+    cachedRecipes   = null;
+    cachedRecipesAt = 0;
+    const recipes = await mcGet('/api/recipes');
+    const slim = (Array.isArray(recipes) ? recipes : []).map((r) => ({
+      id: r.id, name: r.name, portion_g: r.portion_g, yield_qty: r.yield_qty, yield_unit: r.yield_unit,
+    }));
+    cachedRecipes   = slim;
+    cachedRecipesAt = Date.now();
+    res.json({ ok: true, recipes: slim, refreshedAt: new Date().toISOString() });
   } catch (err) {
     next(err);
   }
