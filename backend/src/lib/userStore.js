@@ -33,26 +33,46 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
 }
 
-// ── Seed admin padrão (só se users.json não existe) ─────────────────
+// ── Seed / sincronia do admin padrão ─────────────────────────────────
+// Sempre garante que o admin definido por ADMIN_USER/ADMIN_PASS existe
+// com o hash correto (JWT_SECRET pode ter rotacionado, e o filesystem
+// pode ser persistente entre deploys). Se admin-1 já existir, atualiza
+// APENAS ele — não mexe em outros usuários criados via UI.
 
 function seedDefaultAdmin() {
-  if (fs.existsSync(USERS_FILE)) return; // nunca sobrescreve
-
   const adminUser = process.env.ADMIN_USER || 'admin';
   const adminPass = process.env.ADMIN_PASS || 'changeme';
+  const desejadoHash = hashPassword(adminPass);
 
-  const users = [{
-    id: 'admin-1',
-    nome: 'Administrador',
-    login: adminUser,
-    email: null,
-    senhaHash: hashPassword(adminPass),
-    role: 'admin',
-    ativo: true,
-    criadoEm: new Date().toISOString(),
-  }];
-  saveUsers(users);
-  console.log('[auth] Admin padrão criado:', adminUser);
+  const users = loadUsers();
+  const existente = users.find((u) => u.id === 'admin-1');
+
+  if (!existente) {
+    users.push({
+      id: 'admin-1',
+      nome: 'Administrador',
+      login: adminUser,
+      email: null,
+      senhaHash: desejadoHash,
+      role: 'admin',
+      ativo: true,
+      criadoEm: new Date().toISOString(),
+    });
+    saveUsers(users);
+    console.log('[auth] Admin padrão criado:', adminUser);
+    return;
+  }
+
+  // Já existe — se hash ou login estiverem out-of-sync com env, corrige
+  let mudou = false;
+  if (existente.login !== adminUser)     { existente.login = adminUser; mudou = true; }
+  if (existente.senhaHash !== desejadoHash) { existente.senhaHash = desejadoHash; mudou = true; }
+  if (existente.ativo === false)         { existente.ativo = true; mudou = true; }
+
+  if (mudou) {
+    saveUsers(users);
+    console.log('[auth] Admin padrão sincronizado com ADMIN_USER/ADMIN_PASS:', adminUser);
+  }
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────
