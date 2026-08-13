@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ordensApi } from '../services/api';
+import { ordensApi, pedidosApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 
 const STATUS_OPTIONS   = ['PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'CANCELADA'];
@@ -36,6 +36,37 @@ export default function ProducaoPage() {
       setTimeout(() => setError(null), 3500);
     } finally {
       setAtualizando((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  // Ação atômica "Enviar para produção" — 1 clique faz TUDO:
+  // 1) Envia planning ao Meal Control (só se todos preparos vinculados)
+  // 2) Se sucesso, muda status pra EM_ANDAMENTO
+  // 3) Se falhar (preparo sem vínculo), NÃO muda nada e mostra lista dos faltantes
+  const handleEnviarProducao = async (o) => {
+    const cli = o.pedido?.cliente?.nome || 'este pedido';
+    if (!window.confirm(`Enviar produção de ${cli} para o Meal Control?\n\nIsso cria o planning no MC (Dietas personalizadas) e marca esta ordem como "Em Produção".`)) return;
+    setAtualizando((prev) => ({ ...prev, [o.id]: true }));
+    setError(null); setSuccess(null);
+    try {
+      const mcRes = await pedidosApi.enviarMealcontrol(o.pedidoId);
+      // muda status só se envio ao MC deu certo
+      await ordensApi.atualizarStatus(o.id, { status: 'EM_ANDAMENTO', dataPrevisao: dataPrevisao[o.id] || undefined });
+      const planId = mcRes.data?.planningId;
+      setSuccess(`✓ Enviado ao Meal Control (planning #${planId}) e marcado Em Produção.`);
+      setTimeout(() => setSuccess(null), 5000);
+      await loadOrdens();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.semVinculo) {
+        const lista = data.semVinculo.map((p) => `• ${p.alimento} — ${p.preparo}`).join('\n');
+        setError(`Não foi enviado. ${data.semVinculo.length} preparo(s) sem vínculo no Meal Control:\n\n${lista}\n\nVá em Base Alimentar → botão 🔗 MC pra vincular antes de enviar.`);
+      } else {
+        setError(data?.error || 'Erro ao enviar produção.');
+      }
+      setTimeout(() => setError(null), 12000);
+    } finally {
+      setAtualizando((prev) => ({ ...prev, [o.id]: false }));
     }
   };
 
@@ -117,14 +148,24 @@ export default function ProducaoPage() {
                             {o.status === 'PENDENTE' && (
                               <button
                                 className="btn btn-sm btn-primary"
-                                onClick={() => {
-                                  if (window.confirm(`Enviar a produção de ${o.pedido?.cliente?.nome || 'este pedido'} para a fábrica? A ordem passa a aparecer no MealControl (Produção & Compras › Dietas personalizadas).`))
-                                    handleAtualizarStatus(o.id, 'EM_ANDAMENTO');
-                                }}
+                                onClick={() => handleEnviarProducao(o)}
                                 disabled={atualizando[o.id]}
+                                title="Cria planning no Meal Control (Dietas personalizadas) e marca em produção"
                               >
-                                🏭 Enviar para produção
+                                {atualizando[o.id] ? 'Enviando…' : '🏭 Enviar para produção'}
                               </button>
+                            )}
+                            {o.status === 'EM_ANDAMENTO' && o.pedido?.mealcontrolPlanningId && (
+                              <span
+                                title={`Enviado ao Meal Control · planning #${o.pedido.mealcontrolPlanningId}`}
+                                style={{
+                                  fontSize: '0.72rem', fontWeight: 600, color: '#166534',
+                                  background: '#dcfce7', border: '1px solid #16a34a',
+                                  borderRadius: 10, padding: '2px 8px',
+                                }}
+                              >
+                                ✓ MC #{o.pedido.mealcontrolPlanningId}
+                              </span>
                             )}
                             {o.status === 'EM_ANDAMENTO' && (
                               <button className="btn btn-sm btn-success" onClick={() => handleAtualizarStatus(o.id, 'CONCLUIDA')} disabled={atualizando[o.id]}>

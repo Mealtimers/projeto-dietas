@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ordensApi, pedidosApi } from '../services/api';
+import { ordensApi } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 
 const GRUPO_ORDER  = ['Proteína', 'Carboidrato', 'Leguminosa', 'Legumes', 'Molho'];
@@ -17,10 +17,6 @@ export default function ProducaoDetalhePage() {
   const [ordem, setOrdem]       = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
-  const [enviando, setEnviando] = useState(false);
-  const [enviandoMc, setEnviandoMc] = useState(false);
-  const [mcErro, setMcErro]         = useState(null);
-  const [mcSucesso, setMcSucesso]   = useState(null);
   const [abaDetalhe, setAbaDetalhe]     = useState('consolidado');
   const [docImpressao, setDocImpressao] = useState('descritivo');
 
@@ -31,47 +27,8 @@ export default function ProducaoDetalhePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleEnviarProducao = async () => {
-    if (!window.confirm('Marcar esta ordem como EM ANDAMENTO na fábrica?')) return;
-    setEnviando(true);
-    try {
-      await ordensApi.atualizarStatus(id, { status: 'EM_ANDAMENTO' });
-      const res = await ordensApi.buscar(id);
-      setOrdem(res.data);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao enviar para produção.');
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  const handleEnviarMc = async () => {
-    setMcErro(null); setMcSucesso(null);
-    if (!window.confirm('Criar planning correspondente no Meal Control? Cada preparo vira um planning_item usando a receita vinculada.')) return;
-    setEnviandoMc(true);
-    try {
-      const res = await pedidosApi.enviarMealcontrol(ordem.pedidoId);
-      const d = res.data;
-      if (d.alreadySent) {
-        setMcSucesso(`Já enviado — planning #${d.planningId} (${new Date(d.sentAt).toLocaleString('pt-BR')})`);
-      } else {
-        setMcSucesso(`Planning #${d.planningId} criado no Meal Control com ${d.itensEnviados.length} item(ns).`);
-      }
-      // recarrega pra pegar mealcontrolPlanningId atualizado
-      const refreshed = await ordensApi.buscar(id);
-      setOrdem(refreshed.data);
-    } catch (err) {
-      const data = err.response?.data;
-      if (data?.semVinculo) {
-        const lista = data.semVinculo.map(p => `• ${p.alimento} — ${p.preparo}`).join('\n');
-        setMcErro(`${data.error}\n\n${data.semVinculo.length} preparo(s) sem vínculo:\n${lista}\n\nVá em Base Alimentar e vincule antes de enviar.`);
-      } else {
-        setMcErro(data?.error || 'Erro ao enviar para o Meal Control.');
-      }
-    } finally {
-      setEnviandoMc(false);
-    }
-  };
+  // Envio pra produção agora é ação atômica na tela de LISTA (ProducaoPage).
+  // Aqui no detalhe só exibe status.
 
   if (loading) return <div className="loading">Carregando...</div>;
   if (error) return <div className="page-content"><div className="alert alert-error">{error}</div></div>;
@@ -106,14 +63,9 @@ export default function ProducaoDetalhePage() {
         <h1>Somatório — {cliente}</h1>
         <div className="btn-group">
           <StatusBadge status={ordem.status} />
-          {ordem.status === 'PENDENTE' && (
-            <button className="btn btn-primary" onClick={handleEnviarProducao} disabled={enviando}>
-              🏭 Enviar para produção
-            </button>
-          )}
-          {pedido.mealcontrolPlanningId ? (
+          {pedido.mealcontrolPlanningId && (
             <span
-              title={`Enviado ao MC em ${pedido.mealcontrolPlanningAt ? new Date(pedido.mealcontrolPlanningAt).toLocaleString('pt-BR') : ''}`}
+              title={`Enviado ao Meal Control em ${pedido.mealcontrolPlanningAt ? new Date(pedido.mealcontrolPlanningAt).toLocaleString('pt-BR') : ''}`}
               style={{
                 fontSize: '0.8rem', fontWeight: 600, color: '#166534',
                 background: '#dcfce7', border: '1px solid #16a34a',
@@ -122,28 +74,12 @@ export default function ProducaoDetalhePage() {
             >
               ✓ MC #{pedido.mealcontrolPlanningId}
             </span>
-          ) : (
-            <button className="btn btn-secondary" onClick={handleEnviarMc} disabled={enviandoMc}>
-              {enviandoMc ? 'Enviando…' : '📤 Enviar ao Meal Control'}
-            </button>
           )}
           <Link to="/producao" className="btn btn-outline">← Voltar</Link>
         </div>
       </div>
 
       <div className="page-content">
-        {mcErro && (
-          <div className="alert alert-error" style={{ marginBottom: 12, whiteSpace: 'pre-wrap' }}>
-            {mcErro}
-            <button onClick={() => setMcErro(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
-          </div>
-        )}
-        {mcSucesso && (
-          <div className="alert alert-success" style={{ marginBottom: 12 }}>
-            {mcSucesso}
-            <button onClick={() => setMcSucesso(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>×</button>
-          </div>
-        )}
         {itens.length === 0 ? (
           <div className="card">
             <div className="empty-state">
