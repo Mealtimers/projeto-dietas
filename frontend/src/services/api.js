@@ -97,6 +97,7 @@ export const pedidosApi = {
   gerarCardapio: (id) => api.post(`/pedidos/${id}/gerar`),
   atualizarStatus: (id, data) => api.put(`/pedidos/${id}/status`, data),
   atualizarValor:  (id, data) => api.patch(`/pedidos/${id}/valor`, data),
+  enviarMealcontrol: (id) => api.post(`/pedidos/${id}/enviar-mealcontrol`),
 };
 
 export const aprovacoesApi = {

@@ -112,6 +112,10 @@ model PedidoDieta {
   valorTotal        Float?                // Valor cobrado pelo pedido (R$)
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
+
+  // Envio para Meal Control (idempotência)
+  mealcontrolPlanningId  Int?
+  mealcontrolPlanningAt  DateTime?
   proteinas         PedidoProteina[]
   itensPermitidos   PedidoItemPermitido[]
   versoes           CardapioVersao[]

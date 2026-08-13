@@ -13,5 +13,6 @@ router.delete('/:id', pedidosController.deletar);
 router.post('/:id/gerar', pedidosController.gerarCardapio);
 router.put('/:id/status', validate(atualizarStatus), pedidosController.atualizarStatus);
 router.patch('/:id/valor', validate(atualizarValor), pedidosController.atualizarValor);
+router.post('/:id/enviar-mealcontrol', pedidosController.enviarMealcontrol);
 
 module.exports = router;
