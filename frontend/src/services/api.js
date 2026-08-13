@@ -60,10 +60,10 @@ export const alimentosApi = {
   buscar: (id) => api.get(`/alimentos/${id}`),
   criar: (data) => api.post('/alimentos', data),
   atualizar: (id, data) => api.put(`/alimentos/${id}`, data),
-  deletar: (id) => api.delete(`/alimentos/${id}`),
+  deletar: (id, { force = false } = {}) => api.delete(`/alimentos/${id}`, { params: force ? { force: 'true' } : {} }),
   adicionarPreparo: (id, data) => api.post(`/alimentos/${id}/preparos`, data),
   atualizarPreparo: (preparoId, data) => api.put(`/alimentos/preparos/${preparoId}`, data),
-  deletarPreparo: (preparoId) => api.delete(`/alimentos/preparos/${preparoId}`),
+  deletarPreparo: (preparoId, { force = false } = {}) => api.delete(`/alimentos/preparos/${preparoId}`, { params: force ? { force: 'true' } : {} }),
   vincularMealcontrol:   (preparoId, data) => api.put(`/alimentos/preparos/${preparoId}/mealcontrol-link`, data),
   desvincularMealcontrol: (preparoId)      => api.delete(`/alimentos/preparos/${preparoId}/mealcontrol-link`),
 };

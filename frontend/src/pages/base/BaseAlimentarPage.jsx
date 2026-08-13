@@ -187,8 +187,27 @@ export default function BaseAlimentarPage() {
       await alimentosApi.deletar(id);
       setAlimentos((prev) => prev.filter((a) => a.id !== id));
       showMsg('Alimento excluído.');
-    } catch {
-      setError('Erro ao excluir alimento. Verifique se não há pedidos vinculados.');
+    } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.codigo === 'IN_USE') {
+        const uso = err.response.data.uso || {};
+        const msg = `"${nome}" está em uso:\n` +
+                    `  • ${uso.preparos || 0} preparo(s)\n` +
+                    `  • ${uso.itensPermitidos || 0} pedido(s) permitem este alimento\n` +
+                    `  • ${uso.lotes || 0} lote(s) de cardápio\n` +
+                    `  • ${uso.proteinasPedido || 0} pedido(s) usam como proteína\n\n` +
+                    `Recomendação: use "Desativar" (preserva histórico).\n\n` +
+                    `Prosseguir com exclusão FORÇADA (apaga registros históricos)?`;
+        if (!window.confirm(msg)) return;
+        try {
+          await alimentosApi.deletar(id, { force: true });
+          setAlimentos((prev) => prev.filter((a) => a.id !== id));
+          showMsg('Alimento excluído (com cascade).');
+        } catch (err2) {
+          setError(err2.response?.data?.error || 'Erro ao excluir alimento.');
+        }
+      } else {
+        setError(err.response?.data?.error || 'Erro ao excluir alimento.');
+      }
     }
   };
 
@@ -228,8 +247,26 @@ export default function BaseAlimentarPage() {
       const updated = await alimentosApi.buscar(alimentoId);
       setAlimentos((prev) => prev.map((a) => (a.id === alimentoId ? updated.data : a)));
       showMsg('Preparo excluído.');
-    } catch {
-      setError('Erro ao excluir preparo.');
+    } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.codigo === 'IN_USE') {
+        const uso = err.response.data.uso || {};
+        const msg = `"${nome}" está em uso:\n` +
+                    `  • ${uso.lotes || 0} lote(s) de cardápio\n` +
+                    `  • ${uso.pedidos || 0} pedido(s) permitem este preparo\n\n` +
+                    `Recomendação: use "Desativar" (preserva histórico).\n\n` +
+                    `Prosseguir com exclusão FORÇADA (apaga registros históricos)?`;
+        if (!window.confirm(msg)) return;
+        try {
+          await alimentosApi.deletarPreparo(preparoId, { force: true });
+          const updated = await alimentosApi.buscar(alimentoId);
+          setAlimentos((prev) => prev.map((a) => (a.id === alimentoId ? updated.data : a)));
+          showMsg('Preparo excluído (com cascade).');
+        } catch (err2) {
+          setError(err2.response?.data?.error || 'Erro ao excluir preparo.');
+        }
+      } else {
+        setError(err.response?.data?.error || 'Erro ao excluir preparo.');
+      }
     }
   };
 

@@ -80,9 +80,41 @@ const atualizar = async (req, res, next) => {
 const deletar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    await prisma.alimentoBase.delete({ where: { id } });
+    const force = req.query.force === 'true';
+
+    // Conta uso via preparos deste alimento
+    const preparos = await prisma.preparoAlimento.findMany({ where: { alimentoId: id }, select: { id: true } });
+    const preparoIds = preparos.map((p) => p.id);
+    const [lotes, itensPermitidos, proteinasPedido] = await Promise.all([
+      preparoIds.length ? prisma.itemLote.count({ where: { preparoId: { in: preparoIds } } }) : 0,
+      preparoIds.length ? prisma.pedidoItemPermitido.count({ where: { preparoId: { in: preparoIds } } }) : 0,
+      prisma.pedidoProteina.count({ where: { alimentoBaseId: id } }),
+    ]);
+    const emUso = lotes + itensPermitidos + proteinasPedido;
+
+    if (emUso > 0 && !force) {
+      return res.status(409).json({
+        error: 'Alimento em uso — não pode ser excluído diretamente.',
+        codigo: 'IN_USE',
+        uso: { lotes, itensPermitidos, proteinasPedido, preparos: preparoIds.length },
+        sugestao: 'Use Desativar (preserva histórico) ou reenvie com ?force=true (apaga registros de histórico).',
+      });
+    }
+
+    if (force) {
+      // Ordem: dependentes primeiro
+      await prisma.$transaction([
+        prisma.itemLote.deleteMany({ where: { preparoId: { in: preparoIds } } }),
+        prisma.pedidoItemPermitido.deleteMany({ where: { preparoId: { in: preparoIds } } }),
+        prisma.pedidoProteina.deleteMany({ where: { alimentoBaseId: id } }),
+        prisma.alimentoBase.delete({ where: { id } }), // cascade nos preparos
+      ]);
+    } else {
+      await prisma.alimentoBase.delete({ where: { id } });
+    }
     res.status(204).send();
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Alimento não encontrado.' });
     next(err);
   }
 };
@@ -125,9 +157,36 @@ const atualizarPreparo = async (req, res, next) => {
 const deletarPreparo = async (req, res, next) => {
   try {
     const { preparoId } = req.params;
-    await prisma.preparoAlimento.delete({ where: { id: preparoId } });
+    const force = req.query.force === 'true';
+
+    // Conta uso em histórico
+    const [lotes, pedidos] = await Promise.all([
+      prisma.itemLote.count({ where: { preparoId } }),
+      prisma.pedidoItemPermitido.count({ where: { preparoId } }),
+    ]);
+
+    if ((lotes > 0 || pedidos > 0) && !force) {
+      return res.status(409).json({
+        error: 'Preparo em uso — não pode ser excluído diretamente.',
+        codigo: 'IN_USE',
+        uso: { lotes, pedidos },
+        sugestao: 'Use Desativar (preserva histórico) ou reenvie com ?force=true (apaga registros de histórico).',
+      });
+    }
+
+    // Se force=true, apaga referências primeiro
+    if (force) {
+      await prisma.$transaction([
+        prisma.itemLote.deleteMany({ where: { preparoId } }),
+        prisma.pedidoItemPermitido.deleteMany({ where: { preparoId } }),
+        prisma.preparoAlimento.delete({ where: { id: preparoId } }),
+      ]);
+    } else {
+      await prisma.preparoAlimento.delete({ where: { id: preparoId } });
+    }
     res.status(204).send();
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Preparo não encontrado.' });
     next(err);
   }
 };
